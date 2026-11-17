@@ -1155,6 +1155,54 @@
       renderClassrooms();
       renderRepairs();
     });
+    // =========================================================================
+    // 8. Google 試算表自動同步引擎 (支援跨網域即時更新)
+    // =========================================================================
+    
+    // 👇 請將下方引號內的網址，替換成您剛剛從 Google 試算表「發布到網路」複製出來的網址
+    const GOOGLE_SHEET_XLSX_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTSH2S3IeP5i4bvOKwcdUpmuMdle_CwLeCRpmSWpE8ixCBXsekGRpWBwDB9GcBjxOImMpbC8BtwVwm9/pubhtml";
+
+    async function syncFromGoogleSheet() {
+      if (!GOOGLE_SHEET_XLSX_URL.startsWith("http")) return;
+      
+      const badge = document.getElementById('dataSourceBadge');
+      badge.textContent = '🔄 正在從 Google 雲端同步最新表單...';
+
+      try {
+        // 加上時間戳記 _t 避免瀏覽器讀取到舊快取
+        const separator = GOOGLE_SHEET_XLSX_URL.includes('?') ? '&' : '?';
+        const response = await fetch(`${GOOGLE_SHEET_XLSX_URL}${separator}_t=${Date.now()}`, {
+          cache: 'no-store'
+        });
+
+        if (!response.ok) throw new Error(`HTTP 狀態碼 ${response.status}`);
+        
+        const buffer = await response.arrayBuffer();
+        const blob = new Blob([buffer], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        });
+
+        // 直接交由網頁內建的 Excel 解析引擎處理全部分頁 (總表、維修紀錄、完修紀錄)
+        handleExcelFile(blob);
+
+        const nowStr = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+        setTimeout(() => {
+          badge.textContent = `🟢 已連線 Google 試算表 (${classrooms.length} 間教室 | ${nowStr})`;
+        }, 300);
+      } catch (err) {
+        console.warn("Google 試算表同步失敗:", err.message);
+        badge.textContent = '🟡 雲端連線失敗，目前顯示內建資料';
+      }
+    }
+
+    // 網頁載入時自動執行
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      updateStats();
+      renderClassrooms();
+      renderRepairs();
+      syncFromGoogleSheet();
+    });
   </script>
 </body>
 </html>
