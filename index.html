@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>資訊講桌與教室設備管理系統</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS (讀取 Excel .xlsx 必備套件) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      background-color: #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col">
+
+  <!-- 頂部導覽列 -->
+  <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="bg-blue-600 p-2 rounded-lg shadow-inner">
+          <i data-lucide="monitor-speaker" class="w-6 h-6 text-white"></i>
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold tracking-wide flex items-center gap-2">
+            資訊講桌與教室設備管理系統
+            <span id="dataSourceBadge" class="text-xs bg-blue-500/20 text-blue-300 border border-blue-400/30 px-2 py-0.5 rounded-full font-normal">
+              內建預設資料 (可載入完整 Excel)
+            </span>
+          </h1>
+          <p class="text-xs text-slate-400">教室編號・電腦主機狀況・投影機狀況・環控布幕・維修履歷整合查詢</p>
+        </div>
+      </div>
+
+      <!-- 載入 Excel 按鈕與匯出功能 -->
+      <div class="flex items-center gap-2.5">
+        <label for="excelFileInput" class="cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium px-3.5 py-2 rounded-lg shadow transition flex items-center gap-2">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+          <span>載入最新 Excel 表 (.xlsx)</span>
+        </label>
+        <input type="file" id="excelFileInput" accept=".xlsx,.xls" class="hidden" />
+
+        <button onclick="window.print()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium px-3 py-2 rounded-lg transition flex items-center gap-1.5">
+          <i data-lucide="printer" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">列印 / 匯出 PDF</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 主功能分頁籤 -->
+    <div class="bg-slate-800 border-t border-slate-700/80">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-1 overflow-x-auto">
+        <button onclick="switchTab('classrooms')" id="tab-classrooms" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-blue-400 text-blue-400 flex items-center gap-2 whitespace-nowrap">
+          <i data-lucide="layout-grid" class="w-4 h-4"></i> 教室設備總覽
+        </button>
+        <button onclick="switchTab('repairs')" id="tab-repairs" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-300 hover:text-white flex items-center gap-2 whitespace-nowrap">
+          <i data-lucide="wrench" class="w-4 h-4"></i> 維修與完修紀錄
+        </button>
+        <button onclick="switchTab('specs')" id="tab-specs" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-300 hover:text-white flex items-center gap-2 whitespace-nowrap">
+          <i data-lucide="shield-check" class="w-4 h-4"></i> 設備保固與廠商資訊
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主要內容區 -->
+  <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1">
+
+    <!-- 提示橫幅：引導載入完整 Excel -->
+    <div id="excelDropZone" class="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+      <div class="flex items-start gap-3">
+        <div class="bg-blue-100 text-blue-700 p-2 rounded-lg mt-0.5">
+          <i data-lucide="info" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-slate-800">支援直接拖曳或選取您的「資訊講桌清單（網頁）.xlsx」</h3>
+          <p class="text-xs text-slate-600 mt-0.5">
+            目前顯示內建之教室與維修資料。您可以直接將電腦中的 <strong>資訊講桌清單（網頁）.xlsx</strong> 拖曳至此區塊，或點擊右上角綠色按鈕，即可零秒同步全數 <strong>179 間教室（校本部 119 間、醫學院區 60 間）</strong> 的完整欄位！
+          </p>
+        </div>
+      </div>
+      <button onclick="document.getElementById('excelDropZone').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xs self-end sm:self-center shrink-0">
+        隱藏提示
+      </button>
+    </div>
+
+    <!-- ==================== 分頁 1：教室設備總覽 ==================== -->
+    <section id="section-classrooms" class="space-y-6">
+      <!-- 頂部統計指標卡 -->
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-medium text-slate-500">管理教室總數</p>
+            <p id="statTotalRooms" class="text-2xl font-bold text-slate-800 mt-1">0</p>
+            <p id="statCampusSplit" class="text-[11px] text-slate-400 mt-0.5">校本部 / 醫學院區</p>
+          </div>
+          <div class="bg-blue-50 text-blue-600 p-3 rounded-xl">
+            <i data-lucide="school" class="w-6 h-6"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-medium text-slate-500">正常排課教室</p>
+            <p id="statScheduledRooms" class="text-2xl font-bold text-emerald-600 mt-1">0</p>
+            <p id="statUnscheduledRooms" class="text-[11px] text-slate-400 mt-0.5">不排課/借用: 0</p>
+          </div>
+          <div class="bg-emerald-50 text-emerald-600 p-3 rounded-xl">
+            <i data-lucide="calendar-check" class="w-6 h-6"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-medium text-slate-500">電腦保固內 / 新機</p>
+            <p id="statPcWarranty" class="text-2xl font-bold text-indigo-600 mt-1">0</p>
+            <p id="statPcOld" class="text-[11px] text-amber-600 mt-0.5">使用 ≥6 年: 0 台</p>
+          </div>
+          <div class="bg-indigo-50 text-indigo-600 p-3 rounded-xl">
+            <i data-lucide="cpu" class="w-6 h-6"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-medium text-slate-500">投影機保固內</p>
+            <p id="statProjWarranty" class="text-2xl font-bold text-purple-600 mt-1">0</p>
+            <p id="statProjBrand" class="text-[11px] text-slate-400 mt-0.5">ROLY / NEC / 其他</p>
+          </div>
+          <div class="bg-purple-50 text-purple-600 p-3 rounded-xl">
+            <i data-lucide="projector" class="w-6 h-6"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200/80 flex items-center justify-between col-span-2 md:col-span-1">
+          <div>
+            <p class="text-xs font-medium text-slate-500">有維修/報修紀錄</p>
+            <p id="statRepairedRooms" class="text-2xl font-bold text-rose-600 mt-1">0</p>
+            <p class="text-[11px] text-slate-400 mt-0.5">點擊卡片可看維修履歷</p>
+          </div>
+          <div class="bg-rose-50 text-rose-600 p-3 rounded-xl">
+            <i data-lucide="history" class="w-6 h-6"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- 搜尋與多維度篩選列 -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200/80 space-y-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+          <!-- 關鍵字搜尋 -->
+          <div class="sm:col-span-2 relative">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input type="text" id="searchInput" oninput="renderClassrooms()" placeholder="搜尋教室編號 (如 50401, A0410)、電腦/投影機型號、產編..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition" />
+          </div>
+
+          <!-- 校區篩選 -->
+          <div>
+            <select id="filterCampus" onchange="renderClassrooms()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="ALL">📍 所有校區</option>
+              <option value="校本部">校本部</option>
+              <option value="醫學院區">醫學院區</option>
+            </select>
+          </div>
+
+          <!-- 大樓地點篩選 -->
+          <div>
+            <select id="filterBuilding" onchange="renderClassrooms()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="ALL">🏢 所有大樓地點</option>
+              <option value="行政大樓">行政大樓</option>
+              <option value="理工大樓">理工大樓</option>
+              <option value="綜合教學大樓">綜合教學大樓</option>
+              <option value="國際大樓">國際大樓</option>
+              <option value="醫學院區">醫學院區 (A/B/C棟)</option>
+            </select>
+          </div>
+
+          <!-- 排課情形篩選 -->
+          <div>
+            <select id="filterSchedule" onchange="renderClassrooms()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="ALL">📅 所有排課狀態</option>
+              <option value="排課">正常排課</option>
+              <option value="不排課">不排課 (關掉樓層/挪走)</option>
+              <option value="115-1不排課">115-1不排課 (提供借用)</option>
+            </select>
+          </div>
+
+          <!-- 設備狀況篩選 -->
+          <div>
+            <select id="filterStatus" onchange="renderClassrooms()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="ALL">💻 所有設備狀態</option>
+              <option value="PC_WARRANTY">電腦保固內</option>
+              <option value="PC_OLD">電腦老舊 (使用 ≥ 6年)</option>
+              <option value="PROJ_WARRANTY">投影機保固內</option>
+              <option value="SMART_DESK">智慧講桌 / 觸控螢幕</option>
+              <option value="HAS_REPAIR">曾有維修/完修紀錄</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 視圖切換與結果計數 -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
+          <div class="flex items-center gap-2">
+            <span>符合條件共 <strong id="filteredCount" class="text-blue-600 text-sm">0</strong> 間教室</span>
+            <button onclick="resetFilters()" class="text-blue-600 hover:underline ml-2">重設篩選</button>
+          </div>
+
+          <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
+            <button onclick="setViewMode('card')" id="viewBtnCard" class="px-2.5 py-1 rounded-md bg-white text-slate-800 shadow-sm font-medium flex items-center gap-1 transition">
+              <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i> 設備卡片視圖
+            </button>
+            <button onclick="setViewMode('table')" id="viewBtnTable" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-800 font-medium flex items-center gap-1 transition">
+              <i data-lucide="table" class="w-3.5 h-3.5"></i> 密集表格視圖
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 教室卡片顯示區 -->
+      <div id="classroomCardContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+      <!-- 教室表格顯示區 (預設隱藏) -->
+      <div id="classroomTableContainer" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-800 text-slate-200 border-b border-slate-700">
+                <th class="py-3 px-3 font-semibold whitespace-nowrap">教室編號</th>
+                <th class="py-3 px-3 font-semibold whitespace-nowrap">校區 / 大樓</th>
+                <th class="py-3 px-3 font-semibold whitespace-nowrap">排課狀態</th>
+                <th class="py-3 px-3 font-semibold whitespace-nowrap">電腦主機狀況 (型號/規格/年限/保固)</th>
+                <th class="py-3 px-3 font-semibold whitespace-nowrap">還原系統 / 密碼</th>
+                <th class="py-3 px-3 font-semibold whitespace-nowrap">投影機狀況 (型號/保固/廠商)</th>
+                <th class="py-3 px-3 font-semibold whitespace-nowrap">環控 / 訊號 / 布幕</th>
+                <th class="py-3 px-3 font-semibold whitespace-nowrap text-center">詳情</th>
+              </tr>
+            </thead>
+            <tbody id="classroomTableBody" class="divide-y divide-slate-200"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 分頁 2：維修與完修紀錄 ==================== -->
+    <section id="section-repairs" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- 資訊講桌維修紀錄 (小額請購) -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+          <div class="p-4 bg-slate-800 text-white flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="receipt" class="w-5 h-5 text-amber-400"></i>
+              <h2 class="font-bold text-sm sm:text-base">資訊講桌請購維修紀錄 (小額請購單)</h2>
+            </div>
+            <span id="purchaseRepairCount" class="text-xs bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded-full">22 筆</span>
+          </div>
+          <div class="p-3 bg-slate-50 border-b border-slate-200">
+            <input type="text" id="repairSearchInput" oninput="renderRepairs()" placeholder="搜尋教室號碼、維修內容或請購單號..." class="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div class="overflow-x-auto custom-scrollbar flex-1 max-h-[540px]">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead class="bg-slate-100 text-slate-600 sticky top-0">
+                <tr>
+                  <th class="py-2.5 px-3 font-semibold">請購日期</th>
+                  <th class="py-2.5 px-3 font-semibold">教室名稱</th>
+                  <th class="py-2.5 px-3 font-semibold">維修內容</th>
+                  <th class="py-2.5 px-3 font-semibold text-right">金額</th>
+                  <th class="py-2.5 px-3 font-semibold">小額請購單號</th>
+                </tr>
+              </thead>
+              <tbody id="purchaseRepairBody" class="divide-y divide-slate-200"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 廠商完修紀錄 & 故障備註清單 -->
+        <div class="space-y-6">
+          <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+            <div class="p-4 bg-slate-800 text-white flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>
+                <h2 class="font-bold text-sm sm:text-base">廠商日常報修與完修紀錄</h2>
+              </div>
+              <span id="doneRepairCount" class="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full">紀錄清單</span>
+            </div>
+            <div class="overflow-x-auto custom-scrollbar max-h-[340px]">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead class="bg-slate-100 text-slate-600 sticky top-0">
+                  <tr>
+                    <th class="py-2.5 px-3 font-semibold">教室</th>
+                    <th class="py-2.5 px-3 font-semibold">廠商</th>
+                    <th class="py-2.5 px-3 font-semibold">報修與處理內容</th>
+                    <th class="py-2.5 px-3 font-semibold">完修日期</th>
+                    <th class="py-2.5 px-3 font-semibold">備註</th>
+                  </tr>
+                </thead>
+                <tbody id="doneRepairBody" class="divide-y divide-slate-200"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 總表底部異常/移轉特別備註 -->
+          <div class="bg-amber-50/70 rounded-xl shadow-sm border border-amber-200 p-4">
+            <h3 class="text-sm font-bold text-amber-900 flex items-center gap-2 mb-2.5">
+              <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600"></i>
+              總表註記之異常主機與系所移轉紀錄
+            </h3>
+            <ul id="specialNotesList" class="space-y-1.5 text-xs text-amber-900"></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 分頁 3：設備保固與廠商資訊 ==================== -->
+    <section id="section-specs" class="hidden space-y-6">
+      <!-- 廠商通訊錄 -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4">
+          <div class="bg-blue-100 text-blue-700 p-3.5 rounded-xl">
+            <i data-lucide="phone-call" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <span class="text-xs text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded">投影機 / 電腦維護廠商</span>
+            <h3 class="text-lg font-bold text-slate-800 mt-1">澄合</h3>
+            <p class="text-sm font-mono text-slate-600 mt-0.5">📞 0977-088-561</p>
+            <p class="text-xs text-slate-400 mt-1">ROLY RL-A400X (保固內異常直接提供備用機)</p>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4">
+          <div class="bg-emerald-100 text-emerald-700 p-3.5 rounded-xl">
+            <i data-lucide="phone-call" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <span class="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded">環控面板 / 視聽線路廠商</span>
+            <h3 class="text-lg font-bold text-slate-800 mt-1">立閔</h3>
+            <p class="text-sm font-mono text-slate-600 mt-0.5">📞 07-3010155</p>
+            <p class="text-xs text-slate-400 mt-1">環控面板燒錄、訊號改線、投影機燈泡</p>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4">
+          <div class="bg-purple-100 text-purple-700 p-3.5 rounded-xl">
+            <i data-lucide="phone-call" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <span class="text-xs text-purple-600 font-semibold bg-purple-50 px-2 py-0.5 rounded">電腦 / 投影機 / 電動布幕</span>
+            <h3 class="text-lg font-bold text-slate-800 mt-1">興耀 & 雙欣</h3>
+            <p class="text-sm font-mono text-slate-600 mt-0.5">📞 興耀：0929-333-912</p>
+            <p class="text-xs text-slate-400 mt-1">HP / ASUS M700TA 主機、RL-A500X、紅葉電動布幕</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 批次採購設備保固對照表 -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- 電腦主機批次保固 -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="p-3.5 bg-slate-800 text-white font-bold text-sm flex items-center gap-2">
+            <i data-lucide="pc-case" class="w-4 h-4 text-blue-400"></i> 電腦主機型號與保固批次
+          </div>
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-slate-100 text-slate-600">
+              <tr>
+                <th class="py-2.5 px-3">電腦型號</th>
+                <th class="py-2.5 px-3">入帳日期</th>
+                <th class="py-2.5 px-3">保固到期</th>
+                <th class="py-2.5 px-3">廠商</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              <tr><td class="py-2.5 px-3 font-medium">HP 400 G7</td><td class="py-2.5 px-3">109.12.31</td><td class="py-2.5 px-3 text-rose-600">112.12.31 (過保)</td><td class="py-2.5 px-3">興耀</td></tr>
+              <tr><td class="py-2.5 px-3 font-medium">ASUS M700TA_1</td><td class="py-2.5 px-3">110.12.09</td><td class="py-2.5 px-3 text-emerald-600 font-semibold">115.12.08</td><td class="py-2.5 px-3">雙欣</td></tr>
+              <tr><td class="py-2.5 px-3 font-medium">ASUS M700TA_2</td><td class="py-2.5 px-3">111.01.25</td><td class="py-2.5 px-3 text-emerald-600 font-semibold">116.01.24</td><td class="py-2.5 px-3">雙欣</td></tr>
+              <tr><td class="py-2.5 px-3 font-medium">HP Elite Tower 600 G9</td><td class="py-2.5 px-3">111.12.30</td><td class="py-2.5 px-3 text-emerald-600 font-semibold">116.12.29</td><td class="py-2.5 px-3">興耀</td></tr>
+              <tr><td class="py-2.5 px-3 font-medium">ASUS M700TA_3</td><td class="py-2.5 px-3">112.01.18</td><td class="py-2.5 px-3 text-emerald-600 font-semibold">117.01.17</td><td class="py-2.5 px-3">雙欣</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 投影機批次保固 -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="p-3.5 bg-slate-800 text-white font-bold text-sm flex items-center gap-2">
+            <i data-lucide="video" class="w-4 h-4 text-purple-400"></i> 投影機型號與保固批次
+          </div>
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-slate-100 text-slate-600">
+              <tr>
+                <th class="py-2.5 px-3">投影機型號</th>
+                <th class="py-2.5 px-3">入帳日期</th>
+                <th class="py-2.5 px-3">保固到期</th>
+                <th class="py-2.5 px-3">廠商</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              <tr><td class="py-2.5 px-3 font-medium">ROLY RL-A400X</td><td class="py-2.5 px-3">109.12.17</td><td class="py-2.5 px-3 text-amber-600">114.12.17</td><td class="py-2.5 px-3">澄合</td></tr>
+              <tr><td class="py-2.5 px-3 font-medium">ROLY RL-A500X_1</td><td class="py-2.5 px-3">110.12.09</td><td class="py-2.5 px-3 text-emerald-600 font-semibold">115.12.08</td><td class="py-2.5 px-3">雙欣</td></tr>
+              <tr><td class="py-2.5 px-3 font-medium">ROLY RL-A500X_2</td><td class="py-2.5 px-3">111.01.25</td><td class="py-2.5 px-3 text-emerald-600 font-semibold">116.01.24</td><td class="py-2.5 px-3">雙欣</td></tr>
+              <tr><td class="py-2.5 px-3 font-medium">ROLY RL-A500X_4</td><td class="py-2.5 px-3">111.12.30</td><td class="py-2.5 px-3 text-emerald-600 font-semibold">116.12.29</td><td class="py-2.5 px-3">興耀</td></tr>
+              <tr><td class="py-2.5 px-3 font-medium">ROLY RL-A500X_5</td><td class="py-2.5 px-3">111.12.30</td><td class="py-2.5 px-3 text-emerald-600 font-semibold">116.12.29</td><td class="py-2.5 px-3">雙欣</td></tr>
+              <tr><td class="py-2.5 px-3 font-medium">ROLY RL-A500X_3</td><td class="py-2.5 px-3">112.01.18</td><td class="py-2.5 px-3 text-emerald-600 font-semibold">117.01.17</td><td class="py-2.5 px-3">雙欣</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 電動布幕批次保固 -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="p-3.5 bg-slate-800 text-white font-bold text-sm flex items-center gap-2">
+            <i data-lucide="presentation" class="w-4 h-4 text-emerald-400"></i> 電動布幕型號與保固批次
+          </div>
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-slate-100 text-slate-600">
+              <tr>
+                <th class="py-2.5 px-3">布幕型號</th>
+                <th class="py-2.5 px-3">入帳日期</th>
+                <th class="py-2.5 px-3">保固到期</th>
+                <th class="py-2.5 px-3">廠商</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              <tr><td class="py-2.5 px-3 font-medium">紅葉電動 (120吋)</td><td class="py-2.5 px-3">111.12.30</td><td class="py-2.5 px-3 text-emerald-600 font-semibold">116.12.29</td><td class="py-2.5 px-3">興耀</td></tr>
+              <tr><td class="py-2.5 px-3 font-medium">紅葉電動 (150吋)</td><td class="py-2.5 px-3">111.12.30</td><td class="py-2.5 px-3 text-emerald-600 font-semibold">116.12.29</td><td class="py-2.5 px-3">興耀</td></tr>
+              <tr><td class="py-2.5 px-3 font-medium">紅葉電動 (150吋)_1</td><td class="py-2.5 px-3">111.12.30</td><td class="py-2.5 px-3 text-emerald-600 font-semibold">116.12.29</td><td class="py-2.5 px-3">雙欣</td></tr>
+            </tbody>
+          </table>
+          <div class="p-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-600 space-y-1">
+            <p class="font-semibold text-slate-700">📌 環控面板領用紀錄摘要：</p>
+            <p>• 2021-06-07：領用 1 組（醫學院 A0912，李晟智領用）</p>
+            <p>• 2021-08-30：領用 17 組（新資訊講桌使用，姚旭東領用）</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 教室完整詳情彈跳視窗 (Modal) -->
+  <div id="detailModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h3 id="modalRoomTitle" class="text-xl font-bold">教室編號</h3>
+            <span id="modalRoomBadge" class="text-xs px-2.5 py-0.5 rounded-full font-medium">排課狀態</span>
+          </div>
+          <p id="modalRoomSub" class="text-xs text-slate-400 mt-0.5">校區・大樓・教室屬性</p>
+        </div>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="modalContent" class="p-6 overflow-y-auto custom-scrollbar space-y-5 text-sm">
+        <!-- 動態填入詳細內容 -->
+      </div>
+
+      <div class="px-6 py-3 bg-slate-100 border-t border-slate-200 flex justify-end">
+        <button onclick="closeModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium rounded-lg transition">
+          關閉視窗
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. 內建 Excel 核心資料集 (涵蓋各棟大樓代表性教室與完整維修表，並支援上傳完整 179 筆)
+    // =========================================================================
+    const COLS = ["id","campus","loc","type","sched","sched_detail","staff","note","pc_model","ram","ram_type","ssd","pc_asset","pc_in_asset","pc_from","pc_age","pc_date","pc_war","pc_ven","restore_sys","restore_pwd","reinstall","touch","touch_war","proj_model","proj_lamp","proj_asset","proj_date","proj_war","proj_ven","panel","signal","screen","screen_asset","screen_date","screen_war","screen_ven","desk_asset","tv_asset"];
+
+    // 內建資料 (直接開啟即可看到各棟教室、電腦狀況、投影機狀況)
+    const INITIAL_ROWS = [
+      ["1416","校本部","行政大樓","普通教室(36-85)","不排課","關掉教室(因位於關掉樓層)","","","ASUS M700TA_1","8GB","DDR4","512GSSD","31401010003-015987","","",4.0,"110.12.09","115.12.08","雙欣","UWF","","","","","ROLY RL-A500X_1","","50101050021-001534","110.12.09","115.12.08","雙欣","9(舊)","HDMI、VGA","電動(16:9)","60114000001-003721","110.12.09","","雙欣","",""],
+      ["1417","校本部","行政大樓","普通教室(36-85)","不排課","關掉教室(因位於關掉樓層)","","","HP 8200","8GB","DDR3","256GSSD","31401010003-015172","","A0413",6.0,"109.03.12","","","網路衛士","","","","","ROLY RL-A400X","","50101050021-001505","109.12.17","114.12.17","澄合","9(控智)","","手拉","","","","","",""],
+      ["1500","校本部","行政大樓","普通教室(36-85)","不排課","關掉教室(因位於關掉樓層)","","","ASUS M700TA_2","8GB","DDR4","512GSSD","31401010003-016351","","",4.0,"111.01.25","116.01.24","雙欣","UWF","","","","","ROLY RL-A500X_2","","50101050021-001555","111.01.25","116.01.24","雙欣","9(控智)","HDMI、VGA","電動(16:9)","","","","雙欣","",""],
+      ["1520","校本部","行政大樓","普通教室(36-85)","不排課","關掉教室(因位於關掉樓層)","","","HP 400GT","16GB","","256GSSD","31401010003-015762","","",5.0,"109.12.31","","","UWF","","","","","ROLY RL-A400X","","50101050021-001504","109.12.17","114.12.17","澄合","6","","手拉","","","","","",""],
+      ["1617","校本部","行政大樓","普通教室(36-85)","排課","有排課(FOR國際專修部)","應用組","","HP 600 G3","8GB","","120GSSD","31401010003-013806","","",8.0,"106.12.28","","","Toolwiz Time Freeze","s070212","","","","ROLY RL-A400X","","50101050021-001502","109.12.17","114.12.17","澄合","6","","手拉","","","","","",""],
+      ["1618","校本部","行政大樓","普通教室(36-85)","排課","有排課(FOR國際專修部)","立閔","","HP 8200","4GB","DDR3","256GSSD","31401010003-015767","","",5.0,"109.12.31","","","Toolwiz Time Freeze","s070212","","","","MC-422X","NEC(NP47LP)","50101050021-001426","108.12.31","","","6","","手拉","","","","","",""],
+      ["1700","校本部","行政大樓","普通教室(36-85)","排課","有排課","","","ASUS M700TA_3","16GB","DDR4","512GSSD","31401010003-016912","","",4.0,"110.12.09","117.01.17","雙欣","UWF","","","","","ROLY RL-A500X_1","","50101050021-001535","110.12.09","115.12.08","雙欣","9(舊)","HDMI、VGA","電動(16:9)","60114000001-003722","110.12.09","","雙欣","",""],
+      ["1718","校本部","行政大樓","普通教室(36-85)","排課","有排課","","智慧講桌","ASUS M700TA_1","8GB","DDR4","512GSSD","31401010003-016004","","",4.0,"110.12.09","115.12.08","雙欣","UWF","","","","","ROLY RL-A500X_1","","50101050021-001530","110.12.09","115.12.08","雙欣","觸控螢幕","HDMI、VGA","電動(16:9)","60114000001-003717","110.12.09","","雙欣","31401010003-015983",""],
+      ["1719","校本部","行政大樓","普通教室(36-85)","排課","有排課","立閔","","ASUS M700TA_2","8GB","DDR4","512GSSD","31401010003-016353","","",4.0,"111.01.25","116.01.24","雙欣","UWF","","","","","ROLY RL-A500X_2","","50101050021-001557","111.01.25","116.01.24","雙欣","9(控智)","HDMI、VGA","電動(16:9)","","","","雙欣","",""],
+      ["1720","校本部","行政大樓","普通教室(36-85)","排課","有排課(FOR國際專修部)","","","HP Elite Tower 600 G9","8GB","","512GSSD","31401010003-016795","","",3.0,"111.12.30","116.12.29","興耀","UWF","","","","","ROLY RL-A400X","","50101050021-001503","109.12.17","114.12.17","澄合","6","","手拉","","","","","",""],
+      ["1802","校本部","行政大樓","普通教室(36-85)","排課","有排課","","","ASUS M700TA_2","8GB","DDR4","512GSSD","31401010003-016355","","",4.0,"111.01.25","116.01.24","雙欣","UWF","","","","","ROLY RL-A500X_2","","50101050021-001559","111.01.25","116.01.24","雙欣","9(控智)","HDMI、VGA","電動(16:9)","","","","雙欣","",""],
+      ["2311","校本部","理工大樓","普通教室(36-85)","排課","有排課","","","ASUS M700TA_2","16GB","DDR4","512GSSD","31401010003-016359","","",4.0,"111.01.25","116.01.24","雙欣","UWF","","","","","ROLY RL-A500X_2","","50101050021-001563","111.01.25","116.01.24","雙欣","9(控智)","HDMI、VGA","電動(16:9)","","","","雙欣","",""],
+      ["2315","校本部","理工大樓","普通教室(36-85)","排課","有排課","","智慧講桌","ASUS M700TA_1","8GB","DDR4","512GSSD","31401010003-016005","","",4.0,"110.12.09","115.12.08","雙欣","UWF","","","","","ROLY RL-A500X_1","","50101050021-001531","110.12.09","115.12.08","雙欣","觸控螢幕","HDMI、VGA","電動(16:9)","60114000001-003718","110.12.09","","雙欣","31401010003-015984",""],
+      ["2500","校本部","理工大樓","大教室(86-140)","排課","有排課","","","ASUS M700TA_2","8GB","DDR4","512GSSD","31401010003-016377","","",4.0,"111.01.25","116.01.24","雙欣","UWF","","","","","ROLY RL-A400X","","50101050021-001497","109.12.17","114.12.17","澄合","6","","手拉","","","","","",""],
+      ["2522","校本部","理工大樓","普通教室(36-85)","排課","有排課","","","HP 400GT","16GB","","256GSSD","31401010003-015777","","",5.0,"109.12.31","","","UWF","","","","","ROLY RL-A400X","","50101050021-001496","109.12.17","114.12.17","澄合","6","","手拉","","","","","",""],
+      ["50401","校本部","綜合教學大樓","大教室(86-140)","排課","有排課","","智慧講桌","ASUS M700TA_3","16GB","DDR4","512GSSD","31401010003-016908","","",3.0,"112.01.18","117.01.17","雙欣","網路衛士","s970212","","","","ROLY RL-A500X_3","","50101050021-001739","112.01.18","117.01.17","雙欣","觸控螢幕","HDMI、VGA","電動(150吋）","50101050009-000410","112.01.18","","雙欣","智慧講桌（財產綁在電腦上）",""],
+      ["50402","校本部","綜合教學大樓","普通教室(36-85)","排課","有排課","","","HP Elite Tower 600 G9","8GB","","512GSSD","31401010003-016796","","",3.0,"111.12.30","116.12.29","興耀","UWF","","","","","MC-422X","","50101050021-001427","108.12.31","","","6","","電動","","","","","",""],
+      ["50403","校本部","綜合教學大樓","普通教室(36-85)","排課","有排課","","","ASUS M700TA_2","8GB","DDR4","512GSSD","31401010003-016362","","",4.0,"111.01.25","116.01.24","雙欣","UWF","","","","","ROLY RL-A500X_2","","50101050021-001566","111.01.25","116.01.24","雙欣","9(控智)","HDMI、VGA","電動(16:9)","","","","雙欣","",""],
+      ["50409","校本部","綜合教學大樓","大教室(86-140)","排課","有排課","","","HP 400 G5","8GB","","256GSSD","31401010003-014599","","",7.0,"108.01.31","","","伸峰 EZ-Back System","AR090802LH","","","","ROLY RL-A400X","","50101050021-001514 / 001515","109.12.31","114.12.17","澄合","","","電動(雙布幕)","","","","","",""],
+      ["50410","校本部","綜合教學大樓","大教室(86-140)","排課","有排課","","電腦為VGA訊號，若要使用筆電外接VGA，需將電腦關機","HP 280 Pro G5 MT","8GB","","256GSSD","31401010003-015149","","",6.0,"109.03.12","","","UWF","","","","","ROLY RL-A500X_4","","50101050021-001647","111.12.30","116.12.29","興耀","9(控智)","HDMI、VGA","紅葉電動(150吋）","50101050021-001709","111.12.30","116.12.29","興耀","",""],
+      ["50412","校本部","綜合教學大樓","大教室(86-140)","排課","有排課","立閔","","HP 280 Pro G5 MT","8GB","","512GSSD","31401010003-015150","","",6.0,"109.03.12","","","UWF","","","31403070003-000557","116.12.29","ROLY RL-A500X_5","","50101050021-001719","111.12.30","116.12.29","雙欣","9(控智)","HDMI、VGA","紅葉電動(150吋)_1","50101050009-000402","111.12.30","116.12.29","雙欣","","50101050057-000547"],
+      ["50501 (教發錄影設備)","校本部","綜合教學大樓","大教室(86-140)","排課","有排課","","","HP 400GT","16GB","","256GSSD","31401010003-015765","","",5.0,"109.12.31","","","","34772970","","","","ROLY RL-A400X / RL-A500X_4","","50101050021-001510 / 001655","109.12.30 / 111.12.30","","","觸控面板","HDMI","電動(雙布幕)","","","","","",""],
+      ["50512","校本部","綜合教學大樓","大教室(86-140)","排課","有排課","立閔","智慧講桌","ASUS M700TA_3","16GB","","512GSSD","31401010003-016911","","",3.0,"112.01.18","117.01.17","雙欣","Toolwiz Time Freeze","s970212","","","","ROLY RL-A500X_3","","50101050021-001742","112.01.18","117.01.17","雙欣","觸控螢幕","HDMI、VGA","電動(150吋）","50101050009-000413","112.01.18","","雙欣","智慧講桌（財產綁在電腦上）","50101050057-000548"],
+      ["50614","校本部","綜合教學大樓","普通教室(36-85)","排課","有排課","","","ASUS M700TA_1","8GB","DDR4","512GSSD","31401010003-015997","","",4.0,"110.12.09","115.12.08","雙欣","UWF","","","","","ROLY RL-A500X_1","","50101050021-001544","110.12.09","115.12.08","雙欣","9(舊)","HDMI、VGA","電動(16:9)","60114000001-003730","110.12.09","","雙欣","",""],
+      ["60721","校本部","國際大樓","普通教室(36-85)","排課","有排課","","","ASUS M700TA_2","8GB","DDR4","512GSSD","31401010003-016380","","",4.0,"111.01.25","116.01.24","雙欣","UWF","","","","","ROLY RL-A500X_2","","50101050021-001585","111.01.25","116.01.24","雙欣","9(控智)","HDMI、VGA","電動(16:9)","","","","雙欣","",""],
+      ["60725","校本部","國際大樓","普通教室(36-85)","排課","有排課","","智慧講桌","ASUS M700TA_1","8GB","DDR4","512GSSD","31401010003-016008","","",4.0,"110.12.09","115.12.08","雙欣","UWF","","","","","ROLY RL-A500X_1","","50101050021-001548","110.12.09","115.12.08","雙欣","觸控螢幕","HDMI、VGA","電動(16:9)","","","","雙欣","",""],
+      ["61025","校本部","國際大樓","普通教室(36-85)","不排課","關掉教室(因位於關掉樓層)","","","HP 8200","8GB","DDR3","256GSSD","31401010003-015175","","",6.0,"109.03.12","","","UWF","","","","","MC401X","","50101050021-001383","107.12.28","","","6","","電動","","","","","",""],
+      ["61034","校本部","國際大樓","普通教室(36-85)","不排課","關掉教室(因位於關掉樓層)","","","HP 8200","8GB","","512GSSD","31401010003-015180","","",6.0,"109.03.12","","","UWF","","","","","MC401X","","50101050021-001388","107.12.28","","","6","","電動","","","","","",""],
+      ["A0410","醫學院區","醫學院區","普通教室(70)","排課","排課","","","醫學院標準主機","8GB","","512GSSD","31401010003-016801","","",3.0,"111.12.30","","","UWF","","","","","NEC NP-MC401XG","","50101050021-001657","111.12.30","","","","","電動","","","","","",""],
+      ["A0411","醫學院區","醫學院區","普通教室(70)","115-1不排課","不排課，提供借用","","","醫學院標準主機","8GB","","512GSSD","31401010003-016802","","",3.0,"111.12.30","","","UWF","","","","","ROLY RL-A500W","","50101050021-001658","111.12.30","","","","","電動","","","","","",""],
+      ["A0413 (教發錄影設備)","醫學院區","醫學院區","普通教室(70)","排課","排課","","","醫學院標準主機","8GB","","512GSSD","31401010003-015188","","",6.0,"109.03.12","","","UWF","","","","","ROLY RL-A500W","","50101050021-001660","111.12.30","","","","","電動","","","","","",""],
+      ["A0810","醫學院區","醫學院區","普通教室(70)","115-1不排課","不排課，提供借用","","","醫學院主機","4GB","","128GSSD","31401010003-013501","","",9.0,"105.12.20","","","UWF","","","","","ROLY RL-A500W","","50101050021-001670","111.12.30","","","","","電動","","","","","",""],
+      ["B0525","醫學院區","醫學院區","普通教室","排課","排課","","","醫學院標準主機","8GB","","512GSSD","31401010003-015210","","",6.0,"109.03.12","","","UWF","","","","","NEC NP-MC422XG","","50101050021-001450","108.12.31","","","","","電動","","","","","",""],
+      ["C0137 (教發錄影設備)","醫學院區","醫學院區","大教室","排課","排課","","","醫學院標準主機","8GB","","512GSSD","31401010003-016050","","",4.0,"110.12.09","","","UWF","","","","","ROLY*2 RL-A400X","","50101050021-001520","109.12.17","","","","","電動","","","","","",""],
+      ["C0534","醫學院區","醫學院區","普通教室","排課","排課","","","醫學院標準主機","8GB","","512GSSD","31401010003-016820","","",3.0,"111.12.30","","","UWF","","","","","ROLY A500U","","50101050021-001750","112.01.18","","","","","電動","","","","","",""]
+    ];
+
+    // 資訊講桌維修紀錄 (22筆完整資料)
+    let purchaseRepairs = [
+      { date: "111/06/07", room: "50402", content: "資訊講桌電腦維修(主機板）", cost: 3800, po: "1102704700" },
+      { date: "111/10/28", room: "50402", content: "資訊講桌電動布幕維修", cost: 3300, po: "1110607400" },
+      { date: "111/11/21", room: "50806", content: "資訊講桌電源配置線路更改", cost: 2625, po: "1110835800" },
+      { date: "112/06/05", room: "61025", content: "資訊講桌電動布幕備品更換作業", cost: 1500, po: "1112366300" },
+      { date: "112/07/11", room: "50412、61022、61034", content: "資訊講桌使用固態硬碟", cost: 3147, po: "1112717600" },
+      { date: "112/07/25", room: "61034", content: "資訊講桌電腦光碟機", cost: 1920, po: "1112833400" },
+      { date: "112/10/18", room: "60729", content: "資訊講桌開關更換", cost: 700, po: "1120447500" },
+      { date: "112/11/22", room: "2522", content: "資訊講桌教室更換手拉布幕施工", cost: 2800, po: "1120753700" },
+      { date: "112/12/22", room: "60725", content: "智慧講桌鍵盤抽屜維修", cost: 800, po: "1121096200" },
+      { date: "113/01/09", room: "50403", content: "資訊講桌訊號分配器更換", cost: 1800, po: "1121229500" },
+      { date: "113/04/02", room: "50707", content: "講桌電源開孔損壞更換", cost: 800, po: "1121648700" },
+      { date: "113/04/02", room: "50701", content: "講桌更換HDMI孔與挖孔作業", cost: 900, po: "1121648700" },
+      { date: "113/06/18", room: "50409", content: "資訊講桌電腦主機板維修", cost: 4890, po: "1122264900" },
+      { date: "113/10/07", room: "1720、1802、50704、50706、50715", content: "資訊講桌電源迴路調整", cost: 4900, po: "1130353200" },
+      { date: "113/10/07", room: "50514", content: "開關更換", cost: 4900, po: "1130353200" },
+      { date: "113/11/12", room: "50412", content: "教學輔助螢幕維修", cost: 3600, po: "1130650200" },
+      { date: "114/01/06", room: "60725", content: "智慧講桌環控面板維修", cost: 4500, po: "1131150200" },
+      { date: "114/05/22", room: "50614", content: "資訊講桌環控面板變壓器故障更換", cost: 900, po: "1131482300" },
+      { date: "114/07/31", room: "60726", content: "資訊講桌布幕控制維修", cost: 2000, po: "1132091300" },
+      { date: "114/09/24", room: "50512", content: "智慧講桌環控面板維修", cost: 5000, po: "1140278400" },
+      { date: "114/09/30", room: "50615", content: "布幕更換", cost: 3800, po: "1140312400" },
+      { date: "114/10/16", room: "2522", content: "布幕移機工費", cost: 3800, po: "1140421100" }
+    ];
+
+    // 完修紀錄代表清單
+    let doneRepairs = [
+      { vendor: "立閔", content: "布幕按環控會上上下", room: "60721", date: "2021-03-04", note: "布幕異常，其實要找興耀" },
+      { vendor: "立閔", content: "觸控面板損", room: "60730", date: "2021-02-25", note: "" },
+      { vendor: "立閔", content: "擴音異常會高頻", room: "2500", date: "2021-03-04", note: "已檢測完成" },
+      { vendor: "立閔", content: "環控更換完成", room: "50611", date: "2021-03-04", note: "" },
+      { vendor: "立閔", content: "環控面板更換", room: "61021", date: "2021-03-04", note: "" },
+      { vendor: "立閔", content: "投影機燈泡更換", room: "50504", date: "2021-02-25", note: "" },
+      { vendor: "澄合", content: "換新投影機，寫環控", room: "50401", date: "2021-03-09", note: "" },
+      { vendor: "立閔", content: "改線", room: "50409", date: "2021-03-09", note: "" },
+      { vendor: "澄合", content: "換新投影機，寫環控", room: "50502", date: "2021-03-09", note: "" },
+      { vendor: "立閔", content: "重燒環控，3.5完工", room: "50503", date: "2021-03-09", note: "" },
+      { vendor: "立閔", content: "改線", room: "50509", date: "2021-03-09", note: "" },
+      { vendor: "澄合", content: "換新投影機，寫環控", room: "50601", date: "2021-03-09", note: "" },
+      { vendor: "澄合", content: "電腦重灌", room: "50606", date: "2021-03-09", note: "" },
+      { vendor: "立閔", content: "控制面板重燒", room: "50614", date: "2021-03-09", note: "" },
+      { vendor: "立閔", content: "重燒環控，3.5完工", room: "50715", date: "2021-03-09", note: "" },
+      { vendor: "興耀", content: "重灌英文系統", room: "60721 / 60723 / 60725 / 60726", date: "2021-03-11", note: "" }
+    ];
+
+    // 特殊故障與移轉備註
+    let specialNotes = [
+      "⚠️ 原 50810 教室移入電腦 (31401010003-015177)：故障 (不定時重開機)",
+      "⚠️ 原 61021 教室移入電腦 (31401010003-015775)：故障 (不定時重開機)",
+      "⚠️ 電腦產編 31401010003-014795 (ASUS)：POWER 故障",
+      "📦 移轉區 3820 (科技大樓)：2024.08.07 移轉資管系陳盈君 (ASUS M700TA_2 / ROLY RL-A500X_2)",
+      "📦 移轉區 60826 (國際大樓)：2024.08.07 移轉智英學程洪瑋霞 (113暑假改為智英專業教室)",
+      "📦 移轉區 50807 (綜合教學大樓)：2024.10.29 移轉華語文中心簡意宜，移轉至雙語辦公室 60525"
+    ];
+
+    let classrooms = INITIAL_ROWS.map(arr => {
+      let obj = {};
+      COLS.forEach((c, i) => obj[c] = arr[i]);
+      return obj;
+    });
+
+    let currentViewMode = 'card';
+
+    // =========================================================================
+    // 2. 保固日期與狀態輔助函式 (以民國 115 年為基準判斷保固)
+    // =========================================================================
+    function checkWarrantyStatus(warStr) {
+      if (!warStr || String(warStr).trim() === '') {
+        return { status: 'NONE', label: '過保/無標註', color: 'bg-slate-100 text-slate-600 border-slate-200' };
+      }
+      const clean = String(warStr).trim();
+      const parts = clean.split('.');
+      const rocYear = parseInt(parts[0], 10);
+      if (isNaN(rocYear)) {
+        return { status: 'INFO', label: clean, color: 'bg-blue-50 text-blue-700 border-blue-200' };
+      }
+      if (rocYear >= 116) {
+        return { status: 'ACTIVE', label: `保固至 ${clean}`, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+      } else if (rocYear === 115) {
+        return { status: 'EXPIRING', label: `即將到期 (${clean})`, color: 'bg-amber-50 text-amber-700 border-amber-200' };
+      } else {
+        return { status: 'EXPIRED', label: `已過保 (${clean})`, color: 'bg-rose-50 text-rose-700 border-rose-200' };
+      }
+    }
+
+    function getRoomRepairs(roomId) {
+      const cleanId = String(roomId).split(' ')[0].trim();
+      const pList = purchaseRepairs.filter(r => String(r.room).includes(cleanId));
+      const dList = doneRepairs.filter(r => String(r.room).includes(cleanId));
+      return { pList, dList, total: pList.length + dList.length };
+    }
+
+    // =========================================================================
+    // 3. 渲染統計卡片與教室清單
+    // =========================================================================
+    function updateStats() {
+      const total = classrooms.length;
+      const hqCount = classrooms.filter(c => c.campus === '校本部').length;
+      const medCount = classrooms.filter(c => c.campus === '醫學院區').length;
+
+      const scheduled = classrooms.filter(c => c.sched === '排課').length;
+      const unscheduled = total - scheduled;
+
+      const pcWar = classrooms.filter(c => {
+        const st = checkWarrantyStatus(c.pc_war).status;
+        return st === 'ACTIVE' || st === 'EXPIRING';
+      }).length;
+      const pcOld = classrooms.filter(c => Number(c.pc_age) >= 6).length;
+
+      const projWar = classrooms.filter(c => {
+        const st = checkWarrantyStatus(c.proj_war).status;
+        return st === 'ACTIVE' || st === 'EXPIRING';
+      }).length;
+
+      const repairedRooms = classrooms.filter(c => getRoomRepairs(c.id).total > 0).length;
+
+      document.getElementById('statTotalRooms').textContent = total;
+      document.getElementById('statCampusSplit').textContent = `校本部 ${hqCount} / 醫學院區 ${medCount}`;
+      document.getElementById('statScheduledRooms').textContent = scheduled;
+      document.getElementById('statUnscheduledRooms').textContent = `不排課/提供借用: ${unscheduled} 間`;
+      document.getElementById('statPcWarranty').textContent = pcWar;
+      document.getElementById('statPcOld').textContent = `使用 ≥6 年老舊主機: ${pcOld} 台`;
+      document.getElementById('statProjWarranty').textContent = projWar;
+      document.getElementById('statRepairedRooms').textContent = repairedRooms;
+    }
+
+    function getFilteredClassrooms() {
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      const campus = document.getElementById('filterCampus').value;
+      const building = document.getElementById('filterBuilding').value;
+      const sched = document.getElementById('filterSchedule').value;
+      const status = document.getElementById('filterStatus').value;
+
+      return classrooms.filter(c => {
+        if (campus !== 'ALL' && c.campus !== campus) return false;
+        if (building !== 'ALL') {
+          if (building === '醫學院區') {
+            if (c.campus !== '醫學院區') return false;
+          } else if (c.loc !== building) {
+            return false;
+          }
+        }
+        if (sched !== 'ALL' && c.sched !== sched) return false;
+
+        if (status !== 'ALL') {
+          const pcW = checkWarrantyStatus(c.pc_war).status;
+          const projW = checkWarrantyStatus(c.proj_war).status;
+          if (status === 'PC_WARRANTY' && !(pcW === 'ACTIVE' || pcW === 'EXPIRING')) return false;
+          if (status === 'PC_OLD' && !(Number(c.pc_age) >= 6)) return false;
+          if (status === 'PROJ_WARRANTY' && !(projW === 'ACTIVE' || projW === 'EXPIRING')) return false;
+          if (status === 'SMART_DESK' && !(String(c.note).includes('智慧講桌') || String(c.panel).includes('觸控') || c.touch)) return false;
+          if (status === 'HAS_REPAIR' && getRoomRepairs(c.id).total === 0) return false;
+        }
+
+        if (q) {
+          const hay = [
+            c.id, c.campus, c.loc, c.type, c.sched_detail, c.staff, c.note,
+            c.pc_model, c.ram, c.ssd, c.pc_asset, c.proj_model, c.proj_asset, c.panel, c.screen
+          ].join(' ').toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+    }
+
+    function renderClassrooms() {
+      const list = getFilteredClassrooms();
+      document.getElementById('filteredCount').textContent = list.length;
+
+      const cardContainer = document.getElementById('classroomCardContainer');
+      const tableBody = document.getElementById('classroomTableBody');
+
+      if (list.length === 0) {
+        cardContainer.innerHTML = `
+          <div class="col-span-full bg-white rounded-xl p-10 text-center border border-slate-200">
+            <p class="text-slate-500 font-medium">找不到符合篩選條件的教室設備資料</p>
+            <button onclick="resetFilters()" class="mt-3 px-4 py-1.5 bg-blue-600 text-white text-xs rounded-lg">清除所有篩選條件</button>
+          </div>`;
+        tableBody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-400">無符合條件資料</td></tr>`;
+        return;
+      }
+
+      // 渲染卡片視圖
+      cardContainer.innerHTML = list.map((c, idx) => {
+        const pcWar = checkWarrantyStatus(c.pc_war);
+        const projWar = checkWarrantyStatus(c.proj_war);
+        const repairs = getRoomRepairs(c.id);
+        const isOldPc = Number(c.pc_age) >= 6;
+
+        let schedBadge = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+        if (c.sched === '不排課') schedBadge = 'bg-slate-200 text-slate-700 border-slate-300';
+        else if (c.sched === '115-1不排課') schedBadge = 'bg-amber-100 text-amber-800 border-amber-200';
+
+        return `
+          <div onclick="openRoomModal('${c.id.replace(/'/g, "\\'")}')" class="bg-white rounded-xl shadow-xs hover:shadow-md border border-slate-200/90 hover:border-blue-400 transition cursor-pointer flex flex-col justify-between overflow-hidden group">
+            <div>
+              <!-- 卡片頂部：教室編號與排課狀態 -->
+              <div class="px-4 py-3 bg-slate-50 border-b border-slate-200/80 flex items-start justify-between gap-2">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-base font-bold text-slate-900 group-hover:text-blue-600 transition">${c.id}</span>
+                    ${c.note ? `<span class="text-[11px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-medium">${c.note.length > 8 ? '智慧講桌/特殊備註' : c.note}</span>` : ''}
+                  </div>
+                  <p class="text-xs text-slate-500 mt-0.5">${c.campus}・${c.loc || '醫學院大樓'}・${c.type || '一般教室'}</p>
+                </div>
+                <span class="text-[11px] px-2.5 py-0.5 rounded-full border font-medium shrink-0 ${schedBadge}">
+                  ${c.sched || '未標註'}
+                </span>
+              </div>
+
+              <!-- 卡片中段：電腦狀況與投影機狀況 -->
+              <div class="p-4 space-y-3 text-xs">
+                <!-- 電腦狀況區塊 -->
+                <div class="p-2.5 rounded-lg bg-slate-50/80 border border-slate-200/70 space-y-1.5">
+                  <div class="flex items-center justify-between">
+                    <span class="font-semibold text-slate-700 flex items-center gap-1.5">
+                      <span class="w-2 h-2 rounded-full ${isOldPc ? 'bg-amber-500' : 'bg-blue-600'}"></span>
+                      💻 電腦狀況：${c.pc_model || '標準主機'}
+                    </span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded border ${pcWar.color}">${pcWar.label}</span>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-600">
+                    <span>規格: <strong>${c.ram || '-'} ${c.ram_type || ''} / ${c.ssd || '-'}</strong></span>
+                    <span>使用年數: <strong class="${isOldPc ? 'text-rose-600' : 'text-slate-800'}">${c.pc_age !== '' && c.pc_age !== null ? c.pc_age + ' 年' : '-'}</strong></span>
+                    ${c.pc_ven ? `<span>廠商: ${c.pc_ven}</span>` : ''}
+                  </div>
+                  <div class="text-[11px] text-slate-500 flex flex-wrap justify-between gap-1 pt-1 border-t border-slate-200/60">
+                    <span>還原: ${c.restore_sys || '無'} ${c.restore_pwd ? `(密碼: <code class="bg-slate-200 px-1 rounded text-slate-800">${c.restore_pwd}</code>)` : ''}</span>
+                    <span class="font-mono text-[10px] text-slate-400">${c.pc_asset || ''}</span>
+                  </div>
+                </div>
+
+                <!-- 投影機狀況區塊 -->
+                <div class="p-2.5 rounded-lg bg-purple-50/40 border border-purple-100 space-y-1.5">
+                  <div class="flex items-center justify-between">
+                    <span class="font-semibold text-slate-700 flex items-center gap-1.5">
+                      <span class="w-2 h-2 rounded-full bg-purple-600"></span>
+                      📽️ 投影機：${c.proj_model || '未標註'}
+                    </span>
+                    <span class="text-[11px] px-1.5 py-0.5 rounded border ${projWar.color}">${projWar.label}</span>
+                  </div>
+                  <div class="flex flex-wrap items-center justify-between text-slate-600 gap-1">
+                    <span>入帳: ${c.proj_date || '-'} ${c.proj_ven ? `(${c.proj_ven})` : ''}</span>
+                    <span class="font-mono text-[10px] text-slate-400">${c.proj_asset || ''}</span>
+                  </div>
+                </div>
+
+                <!-- 環控面板與布幕 -->
+                <div class="flex items-center justify-between text-slate-600 px-1 pt-0.5">
+                  <span>🎛️ 環控: <strong>${c.panel || '-'}</strong> (${c.signal || '標準訊號'})</span>
+                  <span>🖼️ 布幕: <strong>${c.screen || '-'}</strong></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 卡片底部：排課說明與維修紀錄提示 -->
+            <div class="px-4 py-2 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+              <span class="truncate max-w-[200px]" title="${c.sched_detail}">${c.sched_detail || ''}</span>
+              <div class="flex items-center gap-2 shrink-0">
+                ${repairs.total > 0 ? `<span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-medium">🔧 維修紀錄 (${repairs.total})</span>` : ''}
+                <span class="text-blue-600 font-medium group-hover:translate-x-0.5 transition">詳情 →</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // 渲染表格視圖
+      tableBody.innerHTML = list.map(c => {
+        const pcWar = checkWarrantyStatus(c.pc_war);
+        const projWar = checkWarrantyStatus(c.proj_war);
+        const repairs = getRoomRepairs(c.id);
+        return `
+          <tr onclick="openRoomModal('${c.id.replace(/'/g, "\\'")}')" class="hover:bg-blue-50/50 cursor-pointer transition">
+            <td class="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap">
+              ${c.id}
+              ${repairs.total > 0 ? `<span class="ml-1 text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded">修${repairs.total}</span>` : ''}
+            </td>
+            <td class="py-2.5 px-3 whitespace-nowrap">
+              <div class="font-medium text-slate-700">${c.campus} - ${c.loc || '醫學院'}</div>
+              <div class="text-[11px] text-slate-400">${c.type}</div>
+            </td>
+            <td class="py-2.5 px-3 whitespace-nowrap">
+              <span class="px-2 py-0.5 rounded text-[11px] font-medium ${c.sched === '排課' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}">${c.sched}</span>
+              <div class="text-[10px] text-slate-400 mt-0.5 max-w-[140px] truncate" title="${c.sched_detail}">${c.sched_detail}</div>
+            </td>
+            <td class="py-2.5 px-3">
+              <div class="font-semibold text-slate-800">${c.pc_model || '未標註'} <span class="font-normal text-slate-500">(${c.ram} / ${c.ssd})</span></div>
+              <div class="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                <span>使用 ${c.pc_age || '-'} 年</span>
+                <span class="px-1.5 py-0.2 rounded border text-[10px] ${pcWar.color}">${pcWar.label}</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 whitespace-nowrap">
+              <div>${c.restore_sys || '-'}</div>
+              ${c.restore_pwd ? `<div class="text-[11px] text-slate-500">密碼: <code class="bg-slate-100 px-1 rounded">${c.restore_pwd}</code></div>` : ''}
+            </td>
+            <td class="py-2.5 px-3">
+              <div class="font-semibold text-slate-800">${c.proj_model || '-'}</div>
+              <div class="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                <span class="px-1.5 py-0.2 rounded border text-[10px] ${projWar.color}">${projWar.label}</span>
+                ${c.proj_ven ? `<span>(${c.proj_ven})</span>` : ''}
+              </div>
+            </td>
+            <td class="py-2.5 px-3 whitespace-nowrap">
+              <div>環控: <strong>${c.panel || '-'}</strong> (${c.signal || '-'})</div>
+              <div class="text-[11px] text-slate-500">布幕: ${c.screen || '-'}</div>
+            </td>
+            <td class="py-2.5 px-3 text-center">
+              <button class="text-blue-600 hover:text-blue-800 font-medium">檢視</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // =========================================================================
+    // 4. 渲染維修紀錄與特殊備註
+    // =========================================================================
+    function renderRepairs() {
+      const q = (document.getElementById('repairSearchInput')?.value || '').trim().toLowerCase();
+      const filteredP = purchaseRepairs.filter(r =>
+        !q || [r.date, r.room, r.content, r.po].join(' ').toLowerCase().includes(q)
+      );
+
+      document.getElementById('purchaseRepairCount').textContent = `${filteredP.length} 筆`;
+      document.getElementById('purchaseRepairBody').innerHTML = filteredP.map(r => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2.5 px-3 whitespace-nowrap font-mono text-slate-600">${r.date}</td>
+          <td class="py-2.5 px-3 font-bold text-blue-700">${r.room}</td>
+          <td class="py-2.5 px-3 text-slate-800">${r.content}</td>
+          <td class="py-2.5 px-3 text-right font-mono font-semibold text-slate-700">$${Number(r.cost).toLocaleString()}</td>
+          <td class="py-2.5 px-3 font-mono text-slate-500">${r.po}</td>
+        </tr>
+      `).join('');
+
+      document.getElementById('doneRepairCount').textContent = `${doneRepairs.length} 筆`;
+      document.getElementById('doneRepairBody').innerHTML = doneRepairs.map(r => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2.5 px-3 font-bold text-slate-800">${r.room}</td>
+          <td class="py-2.5 px-3"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded">${r.vendor}</span></td>
+          <td class="py-2.5 px-3 text-slate-800">${r.content}</td>
+          <td class="py-2.5 px-3 font-mono text-slate-500 whitespace-nowrap">${r.date}</td>
+          <td class="py-2.5 px-3 text-rose-600">${r.note || ''}</td>
+        </tr>
+      `).join('');
+
+      document.getElementById('specialNotesList').innerHTML = specialNotes.map(n => `<li>${n}</li>`).join('');
+    }
+
+    // =========================================================================
+    // 5. 教室詳情彈跳視窗 (Modal)
+    // =========================================================================
+    function openRoomModal(roomId) {
+      const c = classrooms.find(r => r.id === roomId);
+      if (!c) return;
+
+      const pcWar = checkWarrantyStatus(c.pc_war);
+      const projWar = checkWarrantyStatus(c.proj_war);
+      const repairs = getRoomRepairs(c.id);
+
+      document.getElementById('modalRoomTitle').textContent = `教室編號：${c.id}`;
+      const badge = document.getElementById('modalRoomBadge');
+      badge.textContent = `${c.sched} (${c.sched_detail || '無備註'})`;
+      badge.className = `text-xs px-2.5 py-0.5 rounded-full font-medium ${c.sched === '排課' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30' : 'bg-amber-500/20 text-amber-300 border border-amber-400/30'}`;
+      document.getElementById('modalRoomSub').textContent = `${c.campus} ・ ${c.loc || '醫學院區'} ・ ${c.type || '一般教室'} ${c.staff ? '・ 負責維護：' + c.staff : ''}`;
+
+      document.getElementById('modalContent').innerHTML = `
+        ${c.note ? `
+          <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-indigo-900 text-xs flex items-center gap-2">
+            <span class="font-bold">📌 教室特別備註：</span><span>${c.note}</span>
+          </div>
+        ` : ''}
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- 電腦主機完整資訊 -->
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+            <h4 class="font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center justify-between">
+              <span>💻 電腦主機狀況</span>
+              <span class="text-xs px-2 py-0.5 rounded border ${pcWar.color}">${pcWar.label}</span>
+            </h4>
+            <div class="grid grid-cols-2 gap-y-1.5 text-xs">
+              <span class="text-slate-500">主機型號：</span><span class="font-semibold text-slate-800">${c.pc_model || '-'}</span>
+              <span class="text-slate-500">記憶體 / 硬碟：</span><span class="font-semibold text-slate-800">${c.ram || '-'} ${c.ram_type || ''} / ${c.ssd || '-'}</span>
+              <span class="text-slate-500">主機產編：</span><span class="font-mono text-[11px] text-slate-700">${c.pc_asset || '-'}</span>
+              <span class="text-slate-500">入帳日期 / 年數：</span><span>${c.pc_date || '-'} (${c.pc_age !== '' ? c.pc_age + ' 年' : '-'})</span>
+              <span class="text-slate-500">保固廠商：</span><span>${c.pc_ven || '-'}</span>
+              <span class="text-slate-500">還原系統：</span><span class="font-semibold text-blue-700">${c.restore_sys || '-'}</span>
+              <span class="text-slate-500">還原卡密碼：</span><span>${c.restore_pwd ? `<code class="bg-slate-200 px-1.5 py-0.5 rounded font-mono">${c.restore_pwd}</code>` : '無設定'}</span>
+              <span class="text-slate-500">重灌時間：</span><span>${c.reinstall || '-'}</span>
+              ${c.pc_from ? `<span class="text-slate-500">移轉前教室：</span><span class="text-amber-700 font-medium">${c.pc_from} (移入產編: ${c.pc_in_asset || '-'})</span>` : ''}
+            </div>
+          </div>
+
+          <!-- 投影機與周邊完整資訊 -->
+          <div class="p-4 rounded-xl bg-purple-50/40 border border-purple-200 space-y-2">
+            <h4 class="font-bold text-slate-800 border-b border-purple-200 pb-2 flex items-center justify-between">
+              <span>📽️ 投影機與講桌周邊</span>
+              <span class="text-xs px-2 py-0.5 rounded border ${projWar.color}">${projWar.label}</span>
+            </h4>
+            <div class="grid grid-cols-2 gap-y-1.5 text-xs">
+              <span class="text-slate-500">投影機型號：</span><span class="font-semibold text-slate-800">${c.proj_model || '-'}</span>
+              <span class="text-slate-500">投影機產編：</span><span class="font-mono text-[11px] text-slate-700">${c.proj_asset || '-'}</span>
+              <span class="text-slate-500">入帳 / 廠商：</span><span>${c.proj_date || '-'} (${c.proj_ven || '-'})</span>
+              ${c.proj_lamp ? `<span class="text-slate-500">燈泡型號：</span><span>${c.proj_lamp}</span>` : ''}
+              <span class="text-slate-500">環控面板：</span><span class="font-semibold">${c.panel || '-'}</span>
+              <span class="text-slate-500">訊號源：</span><span>${c.signal || '-'}</span>
+              <span class="text-slate-500">布幕樣式：</span><span class="font-semibold">${c.screen || '-'} ${c.screen_ven ? `(${c.screen_ven})` : ''}</span>
+              <span class="text-slate-500">布幕產編/保固：</span><span class="font-mono text-[11px]">${c.screen_asset || '-'} ${c.screen_war ? `(保固:${c.screen_war})` : ''}</span>
+              ${c.desk_asset ? `<span class="text-slate-500">資訊講桌產編：</span><span class="font-mono text-[11px]">${c.desk_asset}</span>` : ''}
+              ${c.touch ? `<span class="text-slate-500">觸控螢幕產編：</span><span class="font-mono text-[11px]">${c.touch} (保固:${c.touch_war || '-'})</span>` : ''}
+              ${c.tv_asset ? `<span class="text-slate-500">電視產編：</span><span class="font-mono text-[11px]">${c.tv_asset}</span>` : ''}
+            </div>
+          </div>
+        </div>
+
+        <!-- 該教室歷史維修與完修紀錄 -->
+        <div class="p-4 rounded-xl bg-white border border-slate-200 space-y-2">
+          <h4 class="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+            🔧 該教室歷史請購維修與完修紀錄 (${repairs.total} 筆)
+          </h4>
+          ${repairs.total === 0 ? `<p class="text-xs text-slate-400">目前尚無此教室的獨立請購維修或報修紀錄。</p>` : `
+            <ul class="space-y-1.5 text-xs divide-y divide-slate-100">
+              ${repairs.pList.map(p => `
+                <li class="pt-1.5 flex items-center justify-between">
+                  <span><strong class="text-amber-700">[請購維修]</strong> ${p.date} - ${p.content} (單號: ${p.po})</span>
+                  <span class="font-mono font-semibold text-slate-700">$${Number(p.cost).toLocaleString()}</span>
+                </li>
+              `).join('')}
+              ${repairs.dList.map(d => `
+                <li class="pt-1.5 flex items-center justify-between">
+                  <span><strong class="text-emerald-700">[廠商完修]</strong> ${d.date} - ${d.content} (${d.vendor})</span>
+                  <span class="text-rose-600">${d.note || '已完修'}</span>
+                </li>
+              `).join('')}
+            </ul>
+          `}
+        </div>
+      `;
+
+      document.getElementById('detailModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('detailModal').classList.add('hidden');
+    }
+
+    // =========================================================================
+    // 6. Excel 檔案動態解析引擎 (支援載入您給的「資訊講桌清單（網頁）.xlsx」全表)
+    // =========================================================================
+    function handleExcelFile(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+
+          // 1. 解析「資訊講桌總表」
+          if (workbook.SheetNames.includes('資訊講桌總表')) {
+            const sheet = workbook.Sheets['資訊講桌總表'];
+            const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+            const parsedRooms = [];
+            const extraFaults = [];
+
+            rawRows.forEach(row => {
+              const roomId = String(row['教室編號'] || '').trim().replace(/\n/g, ' ');
+              if (roomId) {
+                const campus = String(row['校區'] || '').trim();
+                let loc = String(row['地點'] || '').trim();
+                if (!loc) {
+                  if (roomId.startsWith('6')) loc = '國際大樓';
+                  else if (campus === '醫學院區') loc = '醫學院區';
+                }
+                parsedRooms.push({
+                  id: roomId,
+                  campus: campus,
+                  loc: loc,
+                  type: String(row['教室屬性'] || '').trim(),
+                  sched: String(row['是否排課'] || '').trim(),
+                  sched_detail: String(row['114-2排課情形'] || row['113-1排課情形'] || '').trim(),
+                  staff: String(row['維修人員'] || '').trim(),
+                  note: String(row['備註'] || '').trim(),
+                  pc_model: String(row['電腦主機型號'] || '').trim() || (campus === '醫學院區' ? '醫學院主機' : '未標註型號'),
+                  ram: String(row['記憶體'] || '').trim(),
+                  ram_type: String(row['記憶體種類'] || '').trim(),
+                  ssd: String(row['硬碟'] || '').trim(),
+                  pc_asset: String(row['電腦主機產編'] || '').trim(),
+                  pc_in_asset: String(row['移入電腦產編'] || '').trim(),
+                  pc_from: String(row['移轉前教室編號'] || '').trim(),
+                  pc_age: row['電腦主機使用年'] !== "" ? Number(row['電腦主機使用年']) : "",
+                  pc_date: String(row['電腦主機入帳'] || '').trim(),
+                  pc_war: String(row['硬體保固'] || '').trim(),
+                  pc_ven: String(row['電腦保固廠商'] || '').trim(),
+                  restore_sys: String(row['還原系統'] || '').trim(),
+                  restore_pwd: String(row['還原卡密碼'] || '').trim(),
+                  reinstall: String(row['重灌時間'] || '').trim(),
+                  touch: String(row['觸控螢幕'] || '').trim(),
+                  touch_war: String(row['觸控螢幕保固'] || '').trim(),
+                  proj_model: String(row['投影機型號'] || '').trim().replace(/\n/g, ' / '),
+                  proj_lamp: String(row['投影機燈泡'] || '').trim(),
+                  proj_asset: String(row['投影機產編'] || '').trim().replace(/\n/g, ' / '),
+                  proj_date: String(row['投影機入帳'] || '').trim().replace(/\n/g, ' / '),
+                  proj_war: String(row['投影機保固'] || '').trim(),
+                  proj_ven: String(row['投影機廠商'] || '').trim(),
+                  panel: String(row['環控面板'] || '').trim(),
+                  signal: String(row['訊號源'] || '').trim(),
+                  screen: String(row['布幕樣式'] || '').trim(),
+                  screen_asset: String(row['布幕產編'] || '').trim(),
+                  screen_date: String(row['布幕入帳'] || '').trim(),
+                  screen_war: String(row['布幕保固'] || '').trim(),
+                  screen_ven: String(row['廠商'] || '').trim(),
+                  desk_asset: String(row['資訊講桌產編'] || '').trim(),
+                  tv_asset: String(row['電視產編'] || '').trim()
+                });
+              } else if (row['移入電腦產編']) {
+                extraFaults.push(`⚠️ 異常主機註記：${row['移入電腦產編']} ${row['移轉前教室編號'] ? '(原教室: ' + row['移轉前教室編號'] + ')' : ''}`);
+              }
+            });
+
+            if (parsedRooms.length > 0) {
+              classrooms = parsedRooms;
+            }
+          }
+
+          // 2. 解析「資訊講桌維修紀錄」
+          if (workbook.SheetNames.includes('資訊講桌維修紀錄')) {
+            const rSheet = workbook.Sheets['資訊講桌維修紀錄'];
+            const rRows = XLSX.utils.sheet_to_json(rSheet, { defval: "" });
+            purchaseRepairs = rRows.filter(r => r['請購日期'] || r['教室名稱']).map(r => ({
+              date: String(r['請購日期'] || '').trim(),
+              room: String(r['教室名稱'] || '').trim(),
+              content: String(r['內容'] || '').trim(),
+              cost: r['金額'] || 0,
+              po: String(r['小額請購單號'] || '').trim()
+            }));
+          }
+
+          // 3. 解析「完修紀錄」
+          if (workbook.SheetNames.includes('完修紀錄')) {
+            const dSheet = workbook.Sheets['完修紀錄'];
+            const dRows = XLSX.utils.sheet_to_json(dSheet, { defval: "", raw: false });
+            doneRepairs = dRows.filter(r => r['教室'] || r['報修內容']).map(r => ({
+              vendor: String(r['廠商'] || '').trim(),
+              content: String(r['報修內容'] || '').trim(),
+              room: String(r['教室'] || '').trim(),
+              date: String(r['完修日期'] || '').trim(),
+              note: String(r['備註'] || '').trim()
+            }));
+          }
+
+          // 更新畫面與標籤
+          const badge = document.getElementById('dataSourceBadge');
+          badge.textContent = `已同步完整 Excel (${classrooms.length} 間教室)`;
+          badge.className = 'text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-0.5 rounded-full font-medium';
+          document.getElementById('excelDropZone').classList.add('hidden');
+
+          updateStats();
+          renderClassrooms();
+          renderRepairs();
+        } catch (err) {
+          alert('讀取 Excel 檔案時發生錯誤，請確認檔案格式是否為 .xlsx：' + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // 綁定檔案上傳與拖曳事件
+    document.getElementById('excelFileInput').addEventListener('change', function(e) {
+      if (e.target.files.length > 0) handleExcelFile(e.target.files[0]);
+    });
+
+    const dropZone = document.getElementById('excelDropZone');
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('ring-2', 'ring-blue-500');
+    });
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('ring-2', 'ring-blue-500');
+    });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('ring-2', 'ring-blue-500');
+      if (e.dataTransfer.files.length > 0) handleExcelFile(e.dataTransfer.files[0]);
+    });
+
+    // =========================================================================
+    // 7. 介面切換控制
+    // =========================================================================
+    function switchTab(tabName) {
+      ['classrooms', 'repairs', 'specs'].forEach(t => {
+        document.getElementById(`section-${t}`).classList.toggle('hidden', t !== tabName);
+        const btn = document.getElementById(`tab-${t}`);
+        if (t === tabName) {
+          btn.className = 'tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-blue-400 text-blue-400 flex items-center gap-2 whitespace-nowrap';
+        } else {
+          btn.className = 'tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-300 hover:text-white flex items-center gap-2 whitespace-nowrap';
+        }
+      });
+    }
+
+    function setViewMode(mode) {
+      currentViewMode = mode;
+      document.getElementById('classroomCardContainer').classList.toggle('hidden', mode !== 'card');
+      document.getElementById('classroomTableContainer').classList.toggle('hidden', mode !== 'table');
+      document.getElementById('viewBtnCard').className = mode === 'card'
+        ? 'px-2.5 py-1 rounded-md bg-white text-slate-800 shadow-sm font-medium flex items-center gap-1 transition'
+        : 'px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-800 font-medium flex items-center gap-1 transition';
+      document.getElementById('viewBtnTable').className = mode === 'table'
+        ? 'px-2.5 py-1 rounded-md bg-white text-slate-800 shadow-sm font-medium flex items-center gap-1 transition'
+        : 'px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-800 font-medium flex items-center gap-1 transition';
+    }
+
+    function resetFilters() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('filterCampus').value = 'ALL';
+      document.getElementById('filterBuilding').value = 'ALL';
+      document.getElementById('filterSchedule').value = 'ALL';
+      document.getElementById('filterStatus').value = 'ALL';
+      renderClassrooms();
+    }
+
+    // 初始化執行
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      updateStats();
+      renderClassrooms();
+      renderRepairs();
+    });
+  </script>
+</body>
+</html>
