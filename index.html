@@ -42,27 +42,32 @@
           <i data-lucide="monitor-speaker" class="w-6 h-6 text-white"></i>
         </div>
         <div>
-          <h1 class="text-lg sm:text-xl font-bold tracking-wide flex items-center gap-2">
+          <h1 class="text-lg sm:text-xl font-bold tracking-wide flex items-center flex-wrap gap-2">
             資訊講桌與教室設備管理系統
             <span id="dataSourceBadge" class="text-xs bg-blue-500/20 text-blue-300 border border-blue-400/30 px-2 py-0.5 rounded-full font-normal">
-              內建預設資料 (可載入完整 Excel)
+              正在連線雲端資料...
             </span>
           </h1>
           <p class="text-xs text-slate-400">教室編號・電腦主機狀況・投影機狀況・環控布幕・維修履歷整合查詢</p>
         </div>
       </div>
 
-      <!-- 載入 Excel 按鈕與匯出功能 -->
-      <div class="flex items-center gap-2.5">
-        <label for="excelFileInput" class="cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium px-3.5 py-2 rounded-lg shadow transition flex items-center gap-2">
+      <!-- 雲端同步、手動載入與列印按鈕 -->
+      <div class="flex items-center gap-2">
+        <button onclick="syncFromGoogleSheet(true)" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-3 py-2 rounded-lg shadow transition flex items-center gap-1.5">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+          <span>同步雲端</span>
+        </button>
+
+        <label for="excelFileInput" class="cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium px-3 py-2 rounded-lg shadow transition flex items-center gap-1.5">
           <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-          <span>載入最新 Excel 表 (.xlsx)</span>
+          <span class="hidden sm:inline">手動載入 .xlsx</span>
         </label>
         <input type="file" id="excelFileInput" accept=".xlsx,.xls" class="hidden" />
 
         <button onclick="window.print()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium px-3 py-2 rounded-lg transition flex items-center gap-1.5">
           <i data-lucide="printer" class="w-4 h-4"></i>
-          <span class="hidden sm:inline">列印 / 匯出 PDF</span>
+          <span class="hidden md:inline">列印</span>
         </button>
       </div>
     </div>
@@ -86,16 +91,16 @@
   <!-- 主要內容區 -->
   <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1">
 
-    <!-- 提示橫幅：引導載入完整 Excel -->
+    <!-- 提示橫幅：當雲端同步成功後會自動隱藏 -->
     <div id="excelDropZone" class="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
       <div class="flex items-start gap-3">
         <div class="bg-blue-100 text-blue-700 p-2 rounded-lg mt-0.5">
           <i data-lucide="info" class="w-5 h-5"></i>
         </div>
         <div>
-          <h3 class="text-sm font-semibold text-slate-800">支援直接拖曳或選取您的「資訊講桌清單（網頁）.xlsx」</h3>
+          <h3 class="text-sm font-semibold text-slate-800">支援雲端自動同步或直接拖曳「資訊講桌清單.xlsx」</h3>
           <p class="text-xs text-slate-600 mt-0.5">
-            目前顯示內建之教室與維修資料。您可以直接將電腦中的 <strong>資訊講桌清單（網頁）.xlsx</strong> 拖曳至此區塊，或點擊右上角綠色按鈕，即可零秒同步全數 <strong>179 間教室（校本部 119 間、醫學院區 60 間）</strong> 的完整欄位！
+            系統啟動時會自動從您的 Google 試算表同步最新資料；您也可以隨時將電腦中的 <strong>.xlsx</strong> 檔案拖曳至此處立即預覽。
           </p>
         </div>
       </div>
@@ -167,13 +172,11 @@
       <!-- 搜尋與多維度篩選列 -->
       <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200/80 space-y-3">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
-          <!-- 關鍵字搜尋 -->
           <div class="sm:col-span-2 relative">
             <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
             <input type="text" id="searchInput" oninput="renderClassrooms()" placeholder="搜尋教室編號 (如 50401, A0410)、電腦/投影機型號、產編..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition" />
           </div>
 
-          <!-- 校區篩選 -->
           <div>
             <select id="filterCampus" onchange="renderClassrooms()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="ALL">📍 所有校區</option>
@@ -182,7 +185,6 @@
             </select>
           </div>
 
-          <!-- 大樓地點篩選 -->
           <div>
             <select id="filterBuilding" onchange="renderClassrooms()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="ALL">🏢 所有大樓地點</option>
@@ -194,7 +196,6 @@
             </select>
           </div>
 
-          <!-- 排課情形篩選 -->
           <div>
             <select id="filterSchedule" onchange="renderClassrooms()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="ALL">📅 所有排課狀態</option>
@@ -204,7 +205,6 @@
             </select>
           </div>
 
-          <!-- 設備狀況篩選 -->
           <div>
             <select id="filterStatus" onchange="renderClassrooms()" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="ALL">💻 所有設備狀態</option>
@@ -217,7 +217,6 @@
           </div>
         </div>
 
-        <!-- 視圖切換與結果計數 -->
         <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
           <div class="flex items-center gap-2">
             <span>符合條件共 <strong id="filteredCount" class="text-blue-600 text-sm">0</strong> 間教室</span>
@@ -263,7 +262,6 @@
     <!-- ==================== 分頁 2：維修與完修紀錄 ==================== -->
     <section id="section-repairs" class="hidden space-y-6">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- 資訊講桌維修紀錄 (小額請購) -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
           <div class="p-4 bg-slate-800 text-white flex items-center justify-between">
             <div class="flex items-center gap-2">
@@ -291,7 +289,6 @@
           </div>
         </div>
 
-        <!-- 廠商完修紀錄 & 故障備註清單 -->
         <div class="space-y-6">
           <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
             <div class="p-4 bg-slate-800 text-white flex items-center justify-between">
@@ -317,7 +314,6 @@
             </div>
           </div>
 
-          <!-- 總表底部異常/移轉特別備註 -->
           <div class="bg-amber-50/70 rounded-xl shadow-sm border border-amber-200 p-4">
             <h3 class="text-sm font-bold text-amber-900 flex items-center gap-2 mb-2.5">
               <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600"></i>
@@ -331,7 +327,6 @@
 
     <!-- ==================== 分頁 3：設備保固與廠商資訊 ==================== -->
     <section id="section-specs" class="hidden space-y-6">
-      <!-- 廠商通訊錄 -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4">
           <div class="bg-blue-100 text-blue-700 p-3.5 rounded-xl">
@@ -370,9 +365,7 @@
         </div>
       </div>
 
-      <!-- 批次採購設備保固對照表 -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- 電腦主機批次保固 -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div class="p-3.5 bg-slate-800 text-white font-bold text-sm flex items-center gap-2">
             <i data-lucide="pc-case" class="w-4 h-4 text-blue-400"></i> 電腦主機型號與保固批次
@@ -396,7 +389,6 @@
           </table>
         </div>
 
-        <!-- 投影機批次保固 -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div class="p-3.5 bg-slate-800 text-white font-bold text-sm flex items-center gap-2">
             <i data-lucide="video" class="w-4 h-4 text-purple-400"></i> 投影機型號與保固批次
@@ -421,7 +413,6 @@
           </table>
         </div>
 
-        <!-- 電動布幕批次保固 -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div class="p-3.5 bg-slate-800 text-white font-bold text-sm flex items-center gap-2">
             <i data-lucide="presentation" class="w-4 h-4 text-emerald-400"></i> 電動布幕型號與保固批次
@@ -468,9 +459,7 @@
         </button>
       </div>
 
-      <div id="modalContent" class="p-6 overflow-y-auto custom-scrollbar space-y-5 text-sm">
-        <!-- 動態填入詳細內容 -->
-      </div>
+      <div id="modalContent" class="p-6 overflow-y-auto custom-scrollbar space-y-5 text-sm"></div>
 
       <div class="px-6 py-3 bg-slate-100 border-t border-slate-200 flex justify-end">
         <button onclick="closeModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium rounded-lg transition">
@@ -482,11 +471,10 @@
 
   <script>
     // =========================================================================
-    // 1. 內建 Excel 核心資料集 (涵蓋各棟大樓代表性教室與完整維修表，並支援上傳完整 179 筆)
+    // 1. 內建 Excel 核心資料集
     // =========================================================================
     const COLS = ["id","campus","loc","type","sched","sched_detail","staff","note","pc_model","ram","ram_type","ssd","pc_asset","pc_in_asset","pc_from","pc_age","pc_date","pc_war","pc_ven","restore_sys","restore_pwd","reinstall","touch","touch_war","proj_model","proj_lamp","proj_asset","proj_date","proj_war","proj_ven","panel","signal","screen","screen_asset","screen_date","screen_war","screen_ven","desk_asset","tv_asset"];
 
-    // 內建資料 (直接開啟即可看到各棟教室、電腦狀況、投影機狀況)
     const INITIAL_ROWS = [
       ["1416","校本部","行政大樓","普通教室(36-85)","不排課","關掉教室(因位於關掉樓層)","","","ASUS M700TA_1","8GB","DDR4","512GSSD","31401010003-015987","","",4.0,"110.12.09","115.12.08","雙欣","UWF","","","","","ROLY RL-A500X_1","","50101050021-001534","110.12.09","115.12.08","雙欣","9(舊)","HDMI、VGA","電動(16:9)","60114000001-003721","110.12.09","","雙欣","",""],
       ["1417","校本部","行政大樓","普通教室(36-85)","不排課","關掉教室(因位於關掉樓層)","","","HP 8200","8GB","DDR3","256GSSD","31401010003-015172","","A0413",6.0,"109.03.12","","","網路衛士","","","","","ROLY RL-A400X","","50101050021-001505","109.12.17","114.12.17","澄合","9(控智)","","手拉","","","","","",""],
@@ -525,7 +513,6 @@
       ["C0534","醫學院區","醫學院區","普通教室","排課","排課","","","醫學院標準主機","8GB","","512GSSD","31401010003-016820","","",3.0,"111.12.30","","","UWF","","","","","ROLY A500U","","50101050021-001750","112.01.18","","","","","電動","","","","","",""]
     ];
 
-    // 資訊講桌維修紀錄 (22筆完整資料)
     let purchaseRepairs = [
       { date: "111/06/07", room: "50402", content: "資訊講桌電腦維修(主機板）", cost: 3800, po: "1102704700" },
       { date: "111/10/28", room: "50402", content: "資訊講桌電動布幕維修", cost: 3300, po: "1110607400" },
@@ -551,7 +538,6 @@
       { date: "114/10/16", room: "2522", content: "布幕移機工費", cost: 3800, po: "1140421100" }
     ];
 
-    // 完修紀錄代表清單
     let doneRepairs = [
       { vendor: "立閔", content: "布幕按環控會上上下", room: "60721", date: "2021-03-04", note: "布幕異常，其實要找興耀" },
       { vendor: "立閔", content: "觸控面板損", room: "60730", date: "2021-02-25", note: "" },
@@ -571,7 +557,6 @@
       { vendor: "興耀", content: "重灌英文系統", room: "60721 / 60723 / 60725 / 60726", date: "2021-03-11", note: "" }
     ];
 
-    // 特殊故障與移轉備註
     let specialNotes = [
       "⚠️ 原 50810 教室移入電腦 (31401010003-015177)：故障 (不定時重開機)",
       "⚠️ 原 61021 教室移入電腦 (31401010003-015775)：故障 (不定時重開機)",
@@ -590,7 +575,7 @@
     let currentViewMode = 'card';
 
     // =========================================================================
-    // 2. 保固日期與狀態輔助函式 (以民國 115 年為基準判斷保固)
+    // 2. 保固日期與狀態輔助函式
     // =========================================================================
     function checkWarrantyStatus(warStr) {
       if (!warStr || String(warStr).trim() === '') {
@@ -708,8 +693,7 @@
         return;
       }
 
-      // 渲染卡片視圖
-      cardContainer.innerHTML = list.map((c, idx) => {
+      cardContainer.innerHTML = list.map((c) => {
         const pcWar = checkWarrantyStatus(c.pc_war);
         const projWar = checkWarrantyStatus(c.proj_war);
         const repairs = getRoomRepairs(c.id);
@@ -722,7 +706,6 @@
         return `
           <div onclick="openRoomModal('${c.id.replace(/'/g, "\\'")}')" class="bg-white rounded-xl shadow-xs hover:shadow-md border border-slate-200/90 hover:border-blue-400 transition cursor-pointer flex flex-col justify-between overflow-hidden group">
             <div>
-              <!-- 卡片頂部：教室編號與排課狀態 -->
               <div class="px-4 py-3 bg-slate-50 border-b border-slate-200/80 flex items-start justify-between gap-2">
                 <div>
                   <div class="flex items-center gap-2">
@@ -736,9 +719,7 @@
                 </span>
               </div>
 
-              <!-- 卡片中段：電腦狀況與投影機狀況 -->
               <div class="p-4 space-y-3 text-xs">
-                <!-- 電腦狀況區塊 -->
                 <div class="p-2.5 rounded-lg bg-slate-50/80 border border-slate-200/70 space-y-1.5">
                   <div class="flex items-center justify-between">
                     <span class="font-semibold text-slate-700 flex items-center gap-1.5">
@@ -758,7 +739,6 @@
                   </div>
                 </div>
 
-                <!-- 投影機狀況區塊 -->
                 <div class="p-2.5 rounded-lg bg-purple-50/40 border border-purple-100 space-y-1.5">
                   <div class="flex items-center justify-between">
                     <span class="font-semibold text-slate-700 flex items-center gap-1.5">
@@ -773,7 +753,6 @@
                   </div>
                 </div>
 
-                <!-- 環控面板與布幕 -->
                 <div class="flex items-center justify-between text-slate-600 px-1 pt-0.5">
                   <span>🎛️ 環控: <strong>${c.panel || '-'}</strong> (${c.signal || '標準訊號'})</span>
                   <span>🖼️ 布幕: <strong>${c.screen || '-'}</strong></span>
@@ -781,7 +760,6 @@
               </div>
             </div>
 
-            <!-- 卡片底部：排課說明與維修紀錄提示 -->
             <div class="px-4 py-2 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
               <span class="truncate max-w-[200px]" title="${c.sched_detail}">${c.sched_detail || ''}</span>
               <div class="flex items-center gap-2 shrink-0">
@@ -793,7 +771,6 @@
         `;
       }).join('');
 
-      // 渲染表格視圖
       tableBody.innerHTML = list.map(c => {
         const pcWar = checkWarrantyStatus(c.pc_war);
         const projWar = checkWarrantyStatus(c.proj_war);
@@ -901,7 +878,6 @@
         ` : ''}
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <!-- 電腦主機完整資訊 -->
           <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
             <h4 class="font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center justify-between">
               <span>💻 電腦主機狀況</span>
@@ -920,7 +896,6 @@
             </div>
           </div>
 
-          <!-- 投影機與周邊完整資訊 -->
           <div class="p-4 rounded-xl bg-purple-50/40 border border-purple-200 space-y-2">
             <h4 class="font-bold text-slate-800 border-b border-purple-200 pb-2 flex items-center justify-between">
               <span>📽️ 投影機與講桌周邊</span>
@@ -942,7 +917,6 @@
           </div>
         </div>
 
-        <!-- 該教室歷史維修與完修紀錄 -->
         <div class="p-4 rounded-xl bg-white border border-slate-200 space-y-2">
           <h4 class="font-bold text-slate-800 text-xs flex items-center gap-1.5">
             🔧 該教室歷史請購維修與完修紀錄 (${repairs.total} 筆)
@@ -974,126 +948,136 @@
     }
 
     // =========================================================================
-    // 6. Excel 檔案動態解析引擎 (支援載入您給的「資訊講桌清單（網頁）.xlsx」全表)
+    // 6. Excel 二進位資料解析核心 (同時支援雲端同步與手動上傳)
     // =========================================================================
+    function parseExcelArrayBuffer(arrayBuffer, sourceLabel = "已同步完整 Excel") {
+      const data = new Uint8Array(arrayBuffer);
+
+      // 防呆檢查：標準 .xlsx 為 ZIP 封裝，開頭兩個 byte 必為 'PK' (0x50, 0x4B)
+      if (data.length < 4 || data[0] !== 0x50 || data[1] !== 0x4B) {
+        throw new Error("回傳的內容不是有效的 .xlsx 二進位檔（可能是網路快取或權限網頁）");
+      }
+
+      const workbook = XLSX.read(data, { type: 'array' });
+
+      // 1. 解析「資訊講桌總表」
+      if (workbook.SheetNames.includes('資訊講桌總表')) {
+        const sheet = workbook.Sheets['資訊講桌總表'];
+        const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+        const parsedRooms = [];
+        const extraFaults = [];
+
+        rawRows.forEach(row => {
+          const roomId = String(row['教室編號'] || '').trim().replace(/\n/g, ' ');
+          if (roomId) {
+            const campus = String(row['校區'] || '').trim();
+            let loc = String(row['地點'] || '').trim();
+            if (!loc) {
+              if (roomId.startsWith('6')) loc = '國際大樓';
+              else if (campus === '醫學院區') loc = '醫學院區';
+            }
+            parsedRooms.push({
+              id: roomId,
+              campus: campus,
+              loc: loc,
+              type: String(row['教室屬性'] || '').trim(),
+              sched: String(row['是否排課'] || '').trim(),
+              sched_detail: String(row['114-2排課情形'] || row['113-1排課情形'] || '').trim(),
+              staff: String(row['維修人員'] || '').trim(),
+              note: String(row['備註'] || '').trim(),
+              pc_model: String(row['電腦主機型號'] || '').trim() || (campus === '醫學院區' ? '醫學院主機' : '未標註型號'),
+              ram: String(row['記憶體'] || '').trim(),
+              ram_type: String(row['記憶體種類'] || '').trim(),
+              ssd: String(row['硬碟'] || '').trim(),
+              pc_asset: String(row['電腦主機產編'] || '').trim(),
+              pc_in_asset: String(row['移入電腦產編'] || '').trim(),
+              pc_from: String(row['移轉前教室編號'] || '').trim(),
+              pc_age: row['電腦主機使用年'] !== "" ? Number(row['電腦主機使用年']) : "",
+              pc_date: String(row['電腦主機入帳'] || '').trim(),
+              pc_war: String(row['硬體保固'] || '').trim(),
+              pc_ven: String(row['電腦保固廠商'] || '').trim(),
+              restore_sys: String(row['還原系統'] || '').trim(),
+              restore_pwd: String(row['還原卡密碼'] || '').trim(),
+              reinstall: String(row['重灌時間'] || '').trim(),
+              touch: String(row['觸控螢幕'] || '').trim(),
+              touch_war: String(row['觸控螢幕保固'] || '').trim(),
+              proj_model: String(row['投影機型號'] || '').trim().replace(/\n/g, ' / '),
+              proj_lamp: String(row['投影機燈泡'] || '').trim(),
+              proj_asset: String(row['投影機產編'] || '').trim().replace(/\n/g, ' / '),
+              proj_date: String(row['投影機入帳'] || '').trim().replace(/\n/g, ' / '),
+              proj_war: String(row['投影機保固'] || '').trim(),
+              proj_ven: String(row['投影機廠商'] || '').trim(),
+              panel: String(row['環控面板'] || '').trim(),
+              signal: String(row['訊號源'] || '').trim(),
+              screen: String(row['布幕樣式'] || '').trim(),
+              screen_asset: String(row['布幕產編'] || '').trim(),
+              screen_date: String(row['布幕入帳'] || '').trim(),
+              screen_war: String(row['布幕保固'] || '').trim(),
+              screen_ven: String(row['廠商'] || '').trim(),
+              desk_asset: String(row['資訊講桌產編'] || '').trim(),
+              tv_asset: String(row['電視產編'] || '').trim()
+            });
+          } else if (row['移入電腦產編']) {
+            extraFaults.push(`⚠️ 異常主機註記：${row['移入電腦產編']} ${row['移轉前教室編號'] ? '(原教室: ' + row['移轉前教室編號'] + ')' : ''}`);
+          }
+        });
+
+        if (parsedRooms.length > 0) {
+          classrooms = parsedRooms;
+        }
+      }
+
+      // 2. 解析「資訊講桌維修紀錄」
+      if (workbook.SheetNames.includes('資訊講桌維修紀錄')) {
+        const rSheet = workbook.Sheets['資訊講桌維修紀錄'];
+        const rRows = XLSX.utils.sheet_to_json(rSheet, { defval: "" });
+        purchaseRepairs = rRows.filter(r => r['請購日期'] || r['教室名稱']).map(r => ({
+          date: String(r['請購日期'] || '').trim(),
+          room: String(r['教室名稱'] || '').trim(),
+          content: String(r['內容'] || '').trim(),
+          cost: r['金額'] || 0,
+          po: String(r['小額請購單號'] || '').trim()
+        }));
+      }
+
+      // 3. 解析「完修紀錄」
+      if (workbook.SheetNames.includes('完修紀錄')) {
+        const dSheet = workbook.Sheets['完修紀錄'];
+        const dRows = XLSX.utils.sheet_to_json(dSheet, { defval: "", raw: false });
+        doneRepairs = dRows.filter(r => r['教室'] || r['報修內容']).map(r => ({
+          vendor: String(r['廠商'] || '').trim(),
+          content: String(r['報修內容'] || '').trim(),
+          room: String(r['教室'] || '').trim(),
+          date: String(r['完修日期'] || '').trim(),
+          note: String(r['備註'] || '').trim()
+        }));
+      }
+
+      const nowStr = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+      const badge = document.getElementById('dataSourceBadge');
+      badge.textContent = `🟢 ${sourceLabel} (${classrooms.length} 間教室 | ${nowStr})`;
+      badge.className = 'text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-0.5 rounded-full font-medium';
+      document.getElementById('excelDropZone')?.classList.add('hidden');
+
+      updateStats();
+      renderClassrooms();
+      renderRepairs();
+    }
+
+    // 手動上傳或拖曳檔案處理
     function handleExcelFile(file) {
       if (!file) return;
       const reader = new FileReader();
       reader.onload = function(e) {
         try {
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: 'array' });
-
-          // 1. 解析「資訊講桌總表」
-          if (workbook.SheetNames.includes('資訊講桌總表')) {
-            const sheet = workbook.Sheets['資訊講桌總表'];
-            const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-            const parsedRooms = [];
-            const extraFaults = [];
-
-            rawRows.forEach(row => {
-              const roomId = String(row['教室編號'] || '').trim().replace(/\n/g, ' ');
-              if (roomId) {
-                const campus = String(row['校區'] || '').trim();
-                let loc = String(row['地點'] || '').trim();
-                if (!loc) {
-                  if (roomId.startsWith('6')) loc = '國際大樓';
-                  else if (campus === '醫學院區') loc = '醫學院區';
-                }
-                parsedRooms.push({
-                  id: roomId,
-                  campus: campus,
-                  loc: loc,
-                  type: String(row['教室屬性'] || '').trim(),
-                  sched: String(row['是否排課'] || '').trim(),
-                  sched_detail: String(row['114-2排課情形'] || row['113-1排課情形'] || '').trim(),
-                  staff: String(row['維修人員'] || '').trim(),
-                  note: String(row['備註'] || '').trim(),
-                  pc_model: String(row['電腦主機型號'] || '').trim() || (campus === '醫學院區' ? '醫學院主機' : '未標註型號'),
-                  ram: String(row['記憶體'] || '').trim(),
-                  ram_type: String(row['記憶體種類'] || '').trim(),
-                  ssd: String(row['硬碟'] || '').trim(),
-                  pc_asset: String(row['電腦主機產編'] || '').trim(),
-                  pc_in_asset: String(row['移入電腦產編'] || '').trim(),
-                  pc_from: String(row['移轉前教室編號'] || '').trim(),
-                  pc_age: row['電腦主機使用年'] !== "" ? Number(row['電腦主機使用年']) : "",
-                  pc_date: String(row['電腦主機入帳'] || '').trim(),
-                  pc_war: String(row['硬體保固'] || '').trim(),
-                  pc_ven: String(row['電腦保固廠商'] || '').trim(),
-                  restore_sys: String(row['還原系統'] || '').trim(),
-                  restore_pwd: String(row['還原卡密碼'] || '').trim(),
-                  reinstall: String(row['重灌時間'] || '').trim(),
-                  touch: String(row['觸控螢幕'] || '').trim(),
-                  touch_war: String(row['觸控螢幕保固'] || '').trim(),
-                  proj_model: String(row['投影機型號'] || '').trim().replace(/\n/g, ' / '),
-                  proj_lamp: String(row['投影機燈泡'] || '').trim(),
-                  proj_asset: String(row['投影機產編'] || '').trim().replace(/\n/g, ' / '),
-                  proj_date: String(row['投影機入帳'] || '').trim().replace(/\n/g, ' / '),
-                  proj_war: String(row['投影機保固'] || '').trim(),
-                  proj_ven: String(row['投影機廠商'] || '').trim(),
-                  panel: String(row['環控面板'] || '').trim(),
-                  signal: String(row['訊號源'] || '').trim(),
-                  screen: String(row['布幕樣式'] || '').trim(),
-                  screen_asset: String(row['布幕產編'] || '').trim(),
-                  screen_date: String(row['布幕入帳'] || '').trim(),
-                  screen_war: String(row['布幕保固'] || '').trim(),
-                  screen_ven: String(row['廠商'] || '').trim(),
-                  desk_asset: String(row['資訊講桌產編'] || '').trim(),
-                  tv_asset: String(row['電視產編'] || '').trim()
-                });
-              } else if (row['移入電腦產編']) {
-                extraFaults.push(`⚠️ 異常主機註記：${row['移入電腦產編']} ${row['移轉前教室編號'] ? '(原教室: ' + row['移轉前教室編號'] + ')' : ''}`);
-              }
-            });
-
-            if (parsedRooms.length > 0) {
-              classrooms = parsedRooms;
-            }
-          }
-
-          // 2. 解析「資訊講桌維修紀錄」
-          if (workbook.SheetNames.includes('資訊講桌維修紀錄')) {
-            const rSheet = workbook.Sheets['資訊講桌維修紀錄'];
-            const rRows = XLSX.utils.sheet_to_json(rSheet, { defval: "" });
-            purchaseRepairs = rRows.filter(r => r['請購日期'] || r['教室名稱']).map(r => ({
-              date: String(r['請購日期'] || '').trim(),
-              room: String(r['教室名稱'] || '').trim(),
-              content: String(r['內容'] || '').trim(),
-              cost: r['金額'] || 0,
-              po: String(r['小額請購單號'] || '').trim()
-            }));
-          }
-
-          // 3. 解析「完修紀錄」
-          if (workbook.SheetNames.includes('完修紀錄')) {
-            const dSheet = workbook.Sheets['完修紀錄'];
-            const dRows = XLSX.utils.sheet_to_json(dSheet, { defval: "", raw: false });
-            doneRepairs = dRows.filter(r => r['教室'] || r['報修內容']).map(r => ({
-              vendor: String(r['廠商'] || '').trim(),
-              content: String(r['報修內容'] || '').trim(),
-              room: String(r['教室'] || '').trim(),
-              date: String(r['完修日期'] || '').trim(),
-              note: String(r['備註'] || '').trim()
-            }));
-          }
-
-          // 更新畫面與標籤
-          const badge = document.getElementById('dataSourceBadge');
-          badge.textContent = `已同步完整 Excel (${classrooms.length} 間教室)`;
-          badge.className = 'text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-0.5 rounded-full font-medium';
-          document.getElementById('excelDropZone').classList.add('hidden');
-
-          updateStats();
-          renderClassrooms();
-          renderRepairs();
+          parseExcelArrayBuffer(e.target.result, "手動載入 Excel");
         } catch (err) {
-          alert('讀取 Excel 檔案時發生錯誤，請確認檔案格式是否為 .xlsx：' + err.message);
+          alert('讀取 Excel 檔案時發生錯誤：' + err.message);
         }
       };
       reader.readAsArrayBuffer(file);
     }
 
-    // 綁定檔案上傳與拖曳事件
     document.getElementById('excelFileInput').addEventListener('change', function(e) {
       if (e.target.files.length > 0) handleExcelFile(e.target.files[0]);
     });
@@ -1148,60 +1132,44 @@
       renderClassrooms();
     }
 
-    // 初始化執行
-    window.addEventListener('DOMContentLoaded', () => {
-      lucide.createIcons();
-      updateStats();
-      renderClassrooms();
-      renderRepairs();
-    });
     // =========================================================================
-    // 8. Google 試算表自動同步引擎 (支援跨網域即時更新)
+    // 8. Google 試算表自動同步引擎 (移除會導致 Google 400 錯誤的 _t 參數)
     // =========================================================================
-    
-    // 👇 請將下方引號內的網址，替換成您剛剛從 Google 試算表「發布到網路」複製出來的網址
     const GOOGLE_SHEET_XLSX_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTSH2S3IeP5i4bvOKwcdUpmuMdle_CwLeCRpmSWpE8ixCBXsekGRpWBwDB9GcBjxOImMpbC8BtwVwm9/pub?output=xlsx";
 
-    async function syncFromGoogleSheet() {
+    async function syncFromGoogleSheet(showAlertOnFail = false) {
       if (!GOOGLE_SHEET_XLSX_URL.startsWith("http")) return;
-      
+
       const badge = document.getElementById('dataSourceBadge');
       badge.textContent = '🔄 正在從 Google 雲端同步最新表單...';
 
       try {
-        // 加上時間戳記 _t 避免瀏覽器讀取到舊快取
-        const separator = GOOGLE_SHEET_XLSX_URL.includes('?') ? '&' : '?';
-        const response = await fetch(`${GOOGLE_SHEET_XLSX_URL}${separator}_t=${Date.now()}`, {
+        // 注意：不可在 Google /pub?output=xlsx 後方加上 &_t=... 否則 Google 會回傳 400 HTML 錯誤頁
+        const response = await fetch(GOOGLE_SHEET_XLSX_URL, {
+          method: 'GET',
           cache: 'no-store'
         });
 
         if (!response.ok) throw new Error(`HTTP 狀態碼 ${response.status}`);
-        
+
         const buffer = await response.arrayBuffer();
-        const blob = new Blob([buffer], {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        });
-
-        // 直接交由網頁內建的 Excel 解析引擎處理全部分頁 (總表、維修紀錄、完修紀錄)
-        handleExcelFile(blob);
-
-        const nowStr = new Date().toLocaleTimeString('zh-TW', { hour12: false });
-        setTimeout(() => {
-          badge.textContent = `🟢 已連線 Google 試算表 (${classrooms.length} 間教室 | ${nowStr})`;
-        }, 300);
+        parseExcelArrayBuffer(buffer, "已連線 Google 試算表");
       } catch (err) {
         console.warn("Google 試算表同步失敗:", err.message);
-        badge.textContent = '🟡 雲端連線失敗，目前顯示內建資料';
+        badge.textContent = '🟡 雲端連線受阻，目前顯示內建資料';
+        if (showAlertOnFail) {
+          alert('無法從 Google 試算表同步最新資料：\n' + err.message + '\n\n請確認該 Google 試算表的「檔案 > 共用 > 發布到網路」仍維持在已發布狀態。');
+        }
       }
     }
 
-    // 網頁載入時自動執行
+    // 網頁載入時自動執行 (合併為單一入口)
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
       updateStats();
       renderClassrooms();
       renderRepairs();
-      syncFromGoogleSheet();
+      syncFromGoogleSheet(false);
     });
   </script>
 </body>
